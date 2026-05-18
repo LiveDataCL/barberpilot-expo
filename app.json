@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "BarberPilot",
+    "slug": "barberpilot",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#080706",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#080706"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.saulfino.barberpilot"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#080706"
+      },
+      "package": "com.saulfino.barberpilot",
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BarberPilot necesita la c\u00e1mara para registrar comprobantes de pago."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BarberPilot necesita acceso a tus fotos para adjuntar comprobantes."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "BarberPilot necesita acceso a tu galer\u00eda."
+        }
+      ]
+    ],
+    "updates": {
+      "enabled": false
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "icon": "./assets/icon.png"
+  }
+}
