@@ -386,14 +386,10 @@ export default function AdminScreen({ onLogout }) {
         <Text style={[s.secLbl, { marginTop: 20 }]}>ACCESO RÁPIDO</Text>
         <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
           {[
-            { id: 'registrar', label: 'Registrar
-servicio', icon: '➕', color: COLORS.gold },
-            { id: 'aprobar',   label: 'Bandeja
-aprobación', icon: '✅', color: COLORS.ok },
-            { id: 'mensajes',  label: 'Enviar
-nota', icon: '💬', color: COLORS.blue },
-            { id: 'barberos',  label: 'Ver
-barberos', icon: '✂️', color: COLORS.text2 },
+            { id: 'registrar', label: 'Registrar', icon: '➕', color: COLORS.gold },
+            { id: 'aprobar',   label: 'Aprobar',   icon: '✅', color: COLORS.ok },
+            { id: 'mensajes',  label: 'Mensajes',  icon: '💬', color: COLORS.blue },
+            { id: 'barberos',  label: 'Barberos',  icon: '✂️', color: COLORS.text2 },
           ].map(item => (
             <TouchableOpacity key={item.id}
               style={{ flex: 1, minWidth: '45%', backgroundColor: COLORS.s2,
