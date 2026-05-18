@@ -356,6 +356,57 @@ export default function AdminScreen({ onLogout }) {
             <Text style={s.urgenteLink}>Ver ahora →</Text>
           </TouchableOpacity>
         )}
+
+        {/* Resumen por barbero hoy */}
+        <Text style={[s.secLbl, { marginTop: 24 }]}>PRODUCCIÓN HOY POR BARBERO</Text>
+        {BARBEROS.map(b => {
+          const regsB = (resumen?.registros_hoy || []).filter(r => r.bid === b.bid);
+          const svcB  = resumen?.barberos_hoy?.[b.bid]?.svc || 0;
+          const bbB   = resumen?.barberos_hoy?.[b.bid]?.bb  || 0;
+          return (
+            <View key={b.bid} style={[s.barberoPerfil, { marginBottom: 8 }]}>
+              <View style={[s.accionAvatar, { backgroundColor: b.bg, width: 44, height: 44, borderRadius: 22 }]}>
+                <Text style={[s.accionLetra, { color: b.color, fontSize: 18 }]}>{b.letra}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={s.barberoPNom}>{b.nombre}</Text>
+                <Text style={s.barberoPSub}>{svcB} servicios · ${fmt(bbB)} ingresos</Text>
+              </View>
+              <TouchableOpacity
+                style={{ backgroundColor: 'rgba(201,168,76,.12)', borderRadius: 8,
+                  paddingHorizontal: 12, paddingVertical: 8 }}
+                onPress={() => { setMsgBid(b.bid); setModalMsg(true); }}>
+                <Text style={{ fontSize: 16 }}>📋</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+
+        {/* Accesos rápidos a tabs */}
+        <Text style={[s.secLbl, { marginTop: 20 }]}>ACCESO RÁPIDO</Text>
+        <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+          {[
+            { id: 'registrar', label: 'Registrar
+servicio', icon: '➕', color: COLORS.gold },
+            { id: 'aprobar',   label: 'Bandeja
+aprobación', icon: '✅', color: COLORS.ok },
+            { id: 'mensajes',  label: 'Enviar
+nota', icon: '💬', color: COLORS.blue },
+            { id: 'barberos',  label: 'Ver
+barberos', icon: '✂️', color: COLORS.text2 },
+          ].map(item => (
+            <TouchableOpacity key={item.id}
+              style={{ flex: 1, minWidth: '45%', backgroundColor: COLORS.s2,
+                borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
+                padding: 16, alignItems: 'center', gap: 6 }}
+              onPress={() => setTab(item.id)}>
+              <Text style={{ fontSize: 28 }}>{item.icon}</Text>
+              <Text style={{ fontSize: 12, color: item.color, fontWeight: '600',
+                textAlign: 'center', letterSpacing: 0.5 }}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
       </View>
     </ScrollView>
   );
