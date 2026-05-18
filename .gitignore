@@ -2,8 +2,3 @@ node_modules/
 .expo/
 *.bak
 files.zip
-copy
-dir
-eas
-npx
-README.md

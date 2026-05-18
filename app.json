@@ -25,17 +25,21 @@
       },
       "package": "com.saulfino.barberpilot",
       "permissions": [
-        "CAMERA",
-        "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "BarberPilot necesita la c\u00e1mara para registrar comprobantes de pago."
+          "cameraPermission": "BarberPilot necesita la cámara para registrar comprobantes de pago."
         }
       ],
       [
@@ -47,7 +51,7 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "BarberPilot necesita acceso a tu galer\u00eda."
+          "photosPermission": "BarberPilot necesita acceso a tu galería."
         }
       ]
     ],
@@ -57,6 +61,11 @@
     "runtimeVersion": {
       "policy": "sdkVersion"
     },
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "extra": {
+      "eas": {
+        "projectId": "0c11a561-1563-4a60-b89d-b820b49186a1"
+      }
+    }
   }
 }
