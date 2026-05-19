@@ -33,6 +33,8 @@ export default function RegistrarScreen({ barbero }) {
   const [cliTel, setCliTel]         = useState('');
   const [cliCorreo, setCliCorreo]   = useState('');
   const [cliNotas, setCliNotas]     = useState('');
+  const [cliBuscando, setCliBuscando] = useState(false);
+  const [cliEncontrado, setCliEncontrado] = useState(false);
 
   const svc    = SERVICIOS.find((s) => s.id === sid) || SERVICIOS[0];
   const precio = svc.id === 'custom' ? (parseInt(precioLibre) || 0) : svc.precio;
@@ -121,6 +123,7 @@ export default function RegistrarScreen({ barbero }) {
               correo: cliCorreo.trim() || null,
               notas: cliNotas.trim() || null,
               bid_registro: barbero.bid,
+              bnom_registro: barbero.nombre,
             }),
           }).then(r => r.json());
           if (cliRes.ok) {
@@ -139,7 +142,7 @@ export default function RegistrarScreen({ barbero }) {
         setSid('s01'); setPrecioLibre(''); setNombreCustom('');
         setPago('efectivo'); setPropina(''); setFoto(null);
         setGuardarCliente(false); setCliNombre(''); setCliTel('');
-        setCliCorreo(''); setCliNotas(''); setExito(false);
+        setCliCorreo(''); setCliNotas(''); setCliEncontrado(false); setExito(false);
       }, 2500);
     } catch (e) {
       Alert.alert('Error', e.message);
@@ -260,17 +263,36 @@ export default function RegistrarScreen({ barbero }) {
         </View>
         {guardarCliente && (
           <View style={s.crmFields}>
-            <TextInput style={s.input} value={cliNombre} onChangeText={setCliNombre}
+            <View style={{ position: 'relative' }}>
+              <TextInput style={s.input} value={cliTel}
+                onChangeText={buscarClientePorTel}
+                placeholder="Telefono (busca cliente existente)"
+                placeholderTextColor={COLORS.text3} keyboardType="phone-pad" />
+              {cliBuscando && (
+                <ActivityIndicator size="small" color={COLORS.gold}
+                  style={{ position: 'absolute', right: 14, top: 14 }} />
+              )}
+              {cliEncontrado && (
+                <View style={{ backgroundColor: 'rgba(77,184,122,.12)',
+                  borderRadius: 8, padding: 8, marginTop: 6,
+                  flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 14 }}>OK</Text>
+                  <Text style={{ fontSize: 13, color: COLORS.ok }}>
+                    Cliente encontrado - datos cargados
+                  </Text>
+                </View>
+              )}
+            </View>
+            <TextInput style={[s.input,{marginTop:8}]} value={cliNombre}
+              onChangeText={setCliNombre}
               placeholder="Nombre *" placeholderTextColor={COLORS.text3} />
-            <TextInput style={[s.input,{marginTop:8}]} value={cliTel} onChangeText={setCliTel}
-              placeholder="Teléfono" placeholderTextColor={COLORS.text3}
-              keyboardType="phone-pad" />
-            <TextInput style={[s.input,{marginTop:8}]} value={cliCorreo} onChangeText={setCliCorreo}
+            <TextInput style={[s.input,{marginTop:8}]} value={cliCorreo}
+              onChangeText={setCliCorreo}
               placeholder="Correo (opcional)" placeholderTextColor={COLORS.text3}
               keyboardType="email-address" autoCapitalize="none" />
             <TextInput style={[s.input,{marginTop:8,minHeight:70,textAlignVertical:'top'}]}
               value={cliNotas} onChangeText={setCliNotas}
-              placeholder="Notas del barbero (ej: le gusta el fade bajo)"
+              placeholder="Notas (ej: le gusta el fade bajo)"
               placeholderTextColor={COLORS.text3} multiline />
           </View>
         )}

@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  TouchableOpacity, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator, TextInput, Modal,
 } from 'react-native';
 import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
 const PERIODOS = [
-  { id: 'hoy',    label: 'Hoy'          },
-  { id: 'semana', label: 'Esta semana'  },
-  { id: 'mes',    label: 'Este mes'     },
-  { id: 'todo',   label: 'Histórico'   },
+  { id: 'hoy',    label: 'Hoy'         },
+  { id: 'semana', label: 'Esta semana' },
+  { id: 'mes',    label: 'Este mes'    },
+  { id: 'custom', label: 'Fecha...'    },
+  { id: 'todo',   label: 'Historico'   },
 ];
 
 const PAGO_STYLE = {
@@ -20,13 +21,13 @@ const PAGO_STYLE = {
   transferencia: { bg: 'rgba(201,168,76,.15)',  color: '#c9a84c', label: 'TR' },
 };
 
-function getFechaDesde(periodo) {
+function getFechaDesde(periodo, customDesde) {
   const d = new Date();
-  if (periodo === 'hoy') return hoy();
+  if (periodo === 'hoy')    return hoy();
+  if (periodo === 'custom') return customDesde || hoy();
   if (periodo === 'semana') {
-    // Retroceder al lunes de esta semana
-    const dia = d.getDay(); // 0=dom, 1=lun...
-    const diasAtras = dia === 0 ? 6 : dia - 1; // domingo = 6 días atrás
+    const dia = d.getDay();
+    const diasAtras = dia === 0 ? 6 : dia - 1;
     d.setDate(d.getDate() - diasAtras);
   } else if (periodo === 'mes') {
     d.setDate(1);
@@ -62,20 +63,44 @@ async function cargarRegistrosPeriodo(bid, periodo) {
 }
 
 export default function HoyScreen({ barbero }) {
-  const [periodo,   setPeriodo]   = useState('hoy');
-  const [regs,      setRegs]      = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [refreshing,setRefreshing]= useState(false);
+  const [periodo,    setPeriodo]   = useState('hoy');
+  const [regs,       setRegs]      = useState([]);
+  const [loading,    setLoading]   = useState(true);
+  const [refreshing, setRefreshing]= useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [fechaDesde,    setFechaDesde]    = useState('');
+  const [fechaHasta,    setFechaHasta]    = useState('');
 
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const data = await cargarRegistrosPeriodo(barbero.bid, periodo);
-      setRegs(data);
+      const desde = getFechaDesde(periodo, fechaDesde);
+      const hasta = periodo === 'custom' && fechaHasta ? fechaHasta : hoy();
+      // Cargar días entre desde y hasta
+      const dias = [];
+      let cur = new Date(desde + 'T12:00:00');
+      const fin = new Date(hasta + 'T12:00:00');
+      while (cur <= fin) {
+        dias.push(cur.toISOString().slice(0, 10));
+        cur.setDate(cur.getDate() + 1);
+      }
+      const results = await Promise.all(
+        dias.map(f =>
+          fetch(`${API_URL}/registros/dia?fecha=${f}`)
+            .then(r => r.json()).catch(() => ({ ok: false, registros: [] }))
+        )
+      );
+      let regsNew = [];
+      results.forEach(r => {
+        if (r.ok && r.registros) {
+          regsNew = regsNew.concat(r.registros.filter(x => x.bid === barbero.bid));
+        }
+      });
+      setRegs(regsNew);
     } catch {}
     setLoading(false);
     setRefreshing(false);
-  }, [barbero, periodo]);
+  }, [barbero, periodo, fechaDesde, fechaHasta]);
 
   useEffect(() => { cargar(); }, [periodo]);
 
@@ -108,13 +133,61 @@ export default function HoyScreen({ barbero }) {
         {PERIODOS.map(p => (
           <TouchableOpacity key={p.id}
             style={[s.periodoBtn, periodo===p.id && s.periodoBtnOn]}
-            onPress={() => setPeriodo(p.id)}>
+            onPress={() => {
+              if (p.id === 'custom') { setShowDateModal(true); }
+              else { setPeriodo(p.id); }
+            }}>
             <Text style={[s.periodoBtnTxt, periodo===p.id && s.periodoBtnTxtOn]}>
-              {p.label}
+              {p.id === 'custom' && fechaDesde ? fechaDesde.slice(5) : p.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Modal selector de fecha */}
+      <Modal visible={showDateModal} transparent animationType="slide">
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,.7)',
+          justifyContent:'flex-end' }}>
+          <View style={{ backgroundColor: COLORS.s1, borderTopLeftRadius: 20,
+            borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
+            <Text style={{ fontSize: 18, color: COLORS.text, fontWeight: '600',
+              marginBottom: 20 }}>Seleccionar período</Text>
+            <Text style={{ fontSize: 13, color: COLORS.text3, marginBottom: 6 }}>
+              Desde (YYYY-MM-DD)
+            </Text>
+            <TextInput style={{ backgroundColor: COLORS.s2, borderRadius: 10,
+              borderWidth: 1, borderColor: COLORS.border2, color: COLORS.text,
+              fontSize: 16, padding: 14, marginBottom: 14 }}
+              value={fechaDesde} onChangeText={setFechaDesde}
+              placeholder="2026-05-01" placeholderTextColor={COLORS.text3} />
+            <Text style={{ fontSize: 13, color: COLORS.text3, marginBottom: 6 }}>
+              Hasta (YYYY-MM-DD)
+            </Text>
+            <TextInput style={{ backgroundColor: COLORS.s2, borderRadius: 10,
+              borderWidth: 1, borderColor: COLORS.border2, color: COLORS.text,
+              fontSize: 16, padding: 14, marginBottom: 20 }}
+              value={fechaHasta} onChangeText={setFechaHasta}
+              placeholder={hoy()} placeholderTextColor={COLORS.text3} />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={{ flex: 1, padding: 14, backgroundColor: COLORS.s2,
+                borderRadius: 12, alignItems: 'center' }}
+                onPress={() => setShowDateModal(false)}>
+                <Text style={{ color: COLORS.text2, fontWeight: '600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 2, padding: 14, backgroundColor: COLORS.gold,
+                borderRadius: 12, alignItems: 'center' }}
+                onPress={() => {
+                  setPeriodo('custom');
+                  setShowDateModal(false);
+                }}>
+                <Text style={{ color: COLORS.bg, fontWeight: '700', fontSize: 15 }}>
+                  Ver datos
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {loading ? (
         <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>

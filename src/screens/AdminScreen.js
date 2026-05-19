@@ -191,106 +191,133 @@ export default function AdminScreen({ onLogout }) {
   };
 
   const renderRegistrar = () => {
-    const svc = SERVICIOS.find(s => s.id === regSid)||SERVICIOS[0];
-    const precio = svc.id==='custom' ? (parseInt(regCustomPrecio)||0) : svc.precio;
-    const com = regPago==='debito' ? 0.43 : 0.5;
-    const bb = Math.round(precio*com)+(parseInt(regPropina)||0);
-    const PAGOS = [
-      {id:'efectivo', label:'💵 Efectivo', color:COLORS.ok},
-      {id:'debito',   label:'💳 Débito',   color:COLORS.blue},
-      {id:'transferencia', label:'📲 Transf.', color:COLORS.gold},
+    const svc    = SERVICIOS.find(s => s.id === regSid) || SERVICIOS[0];
+    const precio = svc.id === 'custom' ? (parseInt(regCustomPrecio) || 0) : svc.precio;
+    const com    = regPago === 'debito' ? 0.43 : 0.5;
+    const bb     = Math.round(precio * com) + (parseInt(regPropina) || 0);
+    const PAGOS  = [
+      { id: 'efectivo',      label: 'Efectivo',   color: COLORS.ok   },
+      { id: 'debito',        label: 'Debito',      color: COLORS.blue },
+      { id: 'transferencia', label: 'Transf.',     color: COLORS.gold },
     ];
-    if (regExito) return (
-      <View style={s.center}>
-        <Text style={{fontSize:48,marginBottom:12}}>✅</Text>
-        <Text style={{fontSize:20,color:COLORS.ok,fontWeight:'600'}}>¡Registrado!</Text>
-        <Text style={{fontSize:14,color:COLORS.text3,marginTop:6}}>Asignado a {BARBEROS.find(b=>b.bid===regBid)?.nombre}</Text>
-      </View>
-    );
+    if (regExito) {
+      return (
+        <View style={s.center}>
+          <Text style={{ fontSize: 48, marginBottom: 12 }}>OK</Text>
+          <Text style={{ fontSize: 20, color: COLORS.ok, fontWeight: '600' }}>Registrado</Text>
+          <Text style={{ fontSize: 14, color: COLORS.text3, marginTop: 6 }}>
+            Asignado a {BARBEROS.find(b => b.bid === regBid) ? BARBEROS.find(b => b.bid === regBid).nombre : regBid}
+          </Text>
+        </View>
+      );
+    }
     return (
-      <ScrollView style={s.scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }}
+        contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+
         <Text style={s.secLbl}>ASIGNAR A BARBERO</Text>
-        <View style={{flexDirection:'row',gap:8,marginBottom:18}}>
-          {BARBEROS.map(b => (
-            <TouchableOpacity key={b.bid}
-              style={[s.accionCard, regBid===b.bid && {borderColor:b.color,backgroundColor:'rgba(201,168,76,.08)'}]}
-              onPress={() => setRegBid(b.bid)}>
-              <View style={[s.accionAvatar,{backgroundColor:b.bg}]}>
-                <Text style={[s.accionLetra,{color:b.color}]}>{b.letra}</Text>
-              </View>
-              <Text style={[s.accionNom,regBid===b.bid&&{color:b.color}]}>{b.nombre}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+          {BARBEROS.map(function(b) {
+            return (
+              <TouchableOpacity key={b.bid}
+                style={[s.accionCard, regBid === b.bid && { borderColor: b.color, backgroundColor: 'rgba(201,168,76,.08)' }]}
+                onPress={function() { setRegBid(b.bid); }}>
+                <View style={[s.accionAvatar, { backgroundColor: b.bg }]}>
+                  <Text style={[s.accionLetra, { color: b.color }]}>{b.letra}</Text>
+                </View>
+                <Text style={[s.accionNom, regBid === b.bid && { color: b.color }]}>{b.nombre}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <Text style={s.secLbl}>SERVICIO</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginHorizontal:-18,paddingLeft:18,marginBottom:16}}>
-          {SERVICIOS.filter(s=>s.id!=='custom').map(sv => (
-            <TouchableOpacity key={sv.id}
-              style={{width:105,backgroundColor:regSid===sv.id?'rgba(201,168,76,.12)':COLORS.s2,
-                borderRadius:12,borderWidth:1,borderColor:regSid===sv.id?COLORS.gold:COLORS.border,
-                padding:12,marginRight:8,alignItems:'center'}}
-              onPress={() => setRegSid(sv.id)}>
-              <Text style={{fontSize:13,color:regSid===sv.id?COLORS.gold:COLORS.text2,textAlign:'center',fontWeight:'500',marginBottom:4}}>{sv.nom}</Text>
-              <Text style={{fontSize:15,color:regSid===sv.id?COLORS.gold2:COLORS.text3,fontWeight:'600'}}>${sv.precio/1000}K</Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          style={{ marginHorizontal: -18, paddingLeft: 18, marginBottom: 16 }}>
+          {SERVICIOS.filter(function(sv) { return sv.id !== 'custom'; }).map(function(sv) {
+            return (
+              <TouchableOpacity key={sv.id}
+                style={{ width: 105, backgroundColor: regSid === sv.id ? 'rgba(201,168,76,.12)' : COLORS.s2,
+                  borderRadius: 12, borderWidth: 1,
+                  borderColor: regSid === sv.id ? COLORS.gold : COLORS.border,
+                  padding: 12, marginRight: 8, alignItems: 'center' }}
+                onPress={function() { setRegSid(sv.id); }}>
+                <Text style={{ fontSize: 12, color: regSid === sv.id ? COLORS.gold : COLORS.text2,
+                  textAlign: 'center', fontWeight: '500', marginBottom: 4 }}>{sv.nom}</Text>
+                <Text style={{ fontSize: 14, color: regSid === sv.id ? COLORS.gold2 : COLORS.text3,
+                  fontWeight: '600' }}>{'$' + sv.precio / 1000 + 'K'}</Text>
+              </TouchableOpacity>
+            );
+          })}
           <TouchableOpacity
-            style={{width:105,backgroundColor:regSid==='custom'?'rgba(201,168,76,.12)':COLORS.s2,
-              borderRadius:12,borderWidth:1,borderColor:regSid==='custom'?COLORS.gold:COLORS.border,
-              padding:12,marginRight:18,alignItems:'center'}}
-            onPress={() => setRegSid('custom')}>
-            <Text style={{fontSize:13,color:regSid==='custom'?COLORS.gold:COLORS.text2,textAlign:'center',fontWeight:'500',marginBottom:4}}>Especial…</Text>
-            <Text style={{fontSize:15,color:COLORS.text3}}>Libre</Text>
+            style={{ width: 105, backgroundColor: regSid === 'custom' ? 'rgba(201,168,76,.12)' : COLORS.s2,
+              borderRadius: 12, borderWidth: 1,
+              borderColor: regSid === 'custom' ? COLORS.gold : COLORS.border,
+              padding: 12, marginRight: 18, alignItems: 'center' }}
+            onPress={function() { setRegSid('custom'); }}>
+            <Text style={{ fontSize: 12, color: regSid === 'custom' ? COLORS.gold : COLORS.text2,
+              textAlign: 'center', fontWeight: '500', marginBottom: 4 }}>Especial</Text>
+            <Text style={{ fontSize: 14, color: COLORS.text3 }}>Libre</Text>
           </TouchableOpacity>
         </ScrollView>
 
-        {regSid==='custom' && (
-          <View style={{marginBottom:14}}>
+        {regSid === 'custom' && (
+          <View style={{ marginBottom: 14 }}>
             <TextInput style={s.input} value={regCustomNom} onChangeText={setRegCustomNom}
-              placeholder="Nombre del servicio" placeholderTextColor={COLORS.text3}/>
-            <TextInput style={[s.input,{marginTop:8}]} value={regCustomPrecio} onChangeText={setRegCustomPrecio}
-              placeholder="Precio" placeholderTextColor={COLORS.text3} keyboardType="numeric"/>
+              placeholder="Nombre del servicio" placeholderTextColor={COLORS.text3} />
+            <TextInput style={[s.input, { marginTop: 8 }]} value={regCustomPrecio}
+              onChangeText={setRegCustomPrecio} placeholder="Precio"
+              placeholderTextColor={COLORS.text3} keyboardType="numeric" />
           </View>
         )}
 
         <Text style={s.secLbl}>FORMA DE PAGO</Text>
-        <View style={{flexDirection:'row',gap:8,marginBottom:16}}>
-          {PAGOS.map(p => (
-            <TouchableOpacity key={p.id}
-              style={{flex:1,padding:12,borderRadius:12,borderWidth:1.5,alignItems:'center',
-                borderColor:regPago===p.id?p.color:COLORS.border2,
-                backgroundColor:regPago===p.id?`rgba(77,184,122,.08)`:COLORS.s2}}
-              onPress={() => setRegPago(p.id)}>
-              <Text style={{fontSize:12,color:regPago===p.id?p.color:COLORS.text2,fontWeight:'600'}}>{p.label}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+          {PAGOS.map(function(p) {
+            return (
+              <TouchableOpacity key={p.id}
+                style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1.5,
+                  alignItems: 'center',
+                  borderColor: regPago === p.id ? p.color : COLORS.border2,
+                  backgroundColor: regPago === p.id ? 'rgba(77,184,122,.08)' : COLORS.s2 }}
+                onPress={function() { setRegPago(p.id); }}>
+                <Text style={{ fontSize: 12, color: regPago === p.id ? p.color : COLORS.text2,
+                  fontWeight: '600' }}>{p.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <Text style={s.secLbl}>PROPINA (OPCIONAL)</Text>
-        <TextInput style={[s.input,{marginBottom:16}]} value={regPropina} onChangeText={setRegPropina}
-          placeholder="$0" placeholderTextColor={COLORS.text3} keyboardType="numeric"/>
+        <TextInput style={[s.input, { marginBottom: 16 }]} value={regPropina}
+          onChangeText={setRegPropina} placeholder="$0"
+          placeholderTextColor={COLORS.text3} keyboardType="numeric" />
 
-        <View style={{backgroundColor:'rgba(77,184,122,.08)',borderRadius:14,
-          borderWidth:1,borderColor:'rgba(77,184,122,.2)',padding:20,alignItems:'center',marginBottom:18}}>
-          <Text style={{fontSize:11,color:COLORS.text3,letterSpacing:2,textTransform:'uppercase',marginBottom:6}}>
-            RECIBE {BARBEROS.find(b=>b.bid===regBid)?.nombre?.toUpperCase()}
+        <View style={{ backgroundColor: 'rgba(77,184,122,.08)', borderRadius: 14,
+          borderWidth: 1, borderColor: 'rgba(77,184,122,.2)',
+          padding: 20, alignItems: 'center', marginBottom: 18 }}>
+          <Text style={{ fontSize: 11, color: COLORS.text3, letterSpacing: 2,
+            textTransform: 'uppercase', marginBottom: 6 }}>
+            {'RECIBE ' + (BARBEROS.find(function(b) { return b.bid === regBid; }) || {}).nombre}
           </Text>
-          <Text style={{fontSize:40,color:COLORS.ok,fontWeight:'500'}}>${fmt(bb)}</Text>
-          <Text style={{fontSize:13,color:COLORS.text3,marginTop:4}}>{Math.round(com*100)}% · ${fmt(precio)} servicio</Text>
+          <Text style={{ fontSize: 40, color: COLORS.ok, fontWeight: '500' }}>{'$' + fmt(bb)}</Text>
+          <Text style={{ fontSize: 13, color: COLORS.text3, marginTop: 4 }}>
+            {Math.round(com * 100) + '% sobre $' + fmt(precio)}
+          </Text>
         </View>
 
         <TouchableOpacity
-          style={{backgroundColor:COLORS.gold,borderRadius:14,padding:18,alignItems:'center'}}
+          style={{ backgroundColor: COLORS.gold, borderRadius: 14, padding: 18, alignItems: 'center' }}
           onPress={registrarServicioAdmin} disabled={regEnviando}>
           {regEnviando
-            ? <ActivityIndicator color={COLORS.bg}/>
-            : <Text style={{fontSize:17,color:COLORS.bg,fontWeight:'700'}}>✓ Registrar servicio</Text>
+            ? <ActivityIndicator color={COLORS.bg} />
+            : <Text style={{ fontSize: 17, color: COLORS.bg, fontWeight: '700' }}>Registrar servicio</Text>
           }
         </TouchableOpacity>
       </ScrollView>
     );
   };
+
 
   const renderResumen = () => (
     <ScrollView
