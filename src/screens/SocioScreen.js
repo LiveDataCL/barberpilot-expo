@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, Dimensions,
 } from 'react-native';
+const { width: SW } = Dimensions.get('window');
 import { COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 
 const API_URL = 'https://barberpilot-api-production.up.railway.app';

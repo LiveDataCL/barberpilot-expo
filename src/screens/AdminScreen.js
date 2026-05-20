@@ -14,8 +14,8 @@ const TABS_ADMIN = [
   { id: 'resumen',    label: 'Resumen',    icon: '📊' },
   { id: 'registrar',  label: 'Registrar',  icon: '➕' },
   { id: 'aprobar',    label: 'Aprobar',    icon: '✅' },
+  { id: 'tendencias', label: 'Análisis',   icon: '🔥' },
   { id: 'mensajes',   label: 'Mensajes',   icon: '💬' },
-  { id: 'barberos',   label: 'Barberos',   icon: '✂️' },
 ];
 
 export default function AdminScreen({ onLogout }) {
@@ -40,10 +40,53 @@ export default function AdminScreen({ onLogout }) {
   const [regCustomPrecio, setRegCustomPrecio] = useState('');
   const [regEnviando, setRegEnviando] = useState(false);
   const [regExito,    setRegExito]    = useState(false);
+  const [tendData,    setTendData]    = useState(null);
 
   // ── Barbero seleccionado para ver su perfil ──────────────────
   const [verBarbero, setVerBarbero] = useState(null);
   const [datosBarbero, setDatosBarbero] = useState(null);
+
+  const cargarTendencias = async () => {
+    try {
+      const API_URL2 = 'https://barberpilot-api-production.up.railway.app';
+      const desde = mesPeriodo() + '-01';
+      const hasta = hoy();
+      const dias = [];
+      let cur = new Date(desde + 'T12:00:00');
+      const fin = new Date(hasta + 'T12:00:00');
+      while (cur <= fin) { dias.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
+      const results = await Promise.all(
+        dias.map(f => fetch(`${API_URL2}/registros/dia?fecha=${f}`)
+          .then(r => r.json()).catch(() => ({ok:false,registros:[]})))
+      );
+      let allRegs = [];
+      results.forEach(r => { if (r.ok && r.registros) allRegs = allRegs.concat(r.registros); });
+
+      // KPIs por barbero
+      const kpisBarbero = {};
+      BARBEROS.forEach(b => { kpisBarbero[b.bid] = { svc:0, fact:0, bb:0, servicios:{} }; });
+      const porHora = {}; const porDia = {};
+      for (let h=10;h<=19;h++) porHora[h]={svc:0,fact:0};
+      for (let d=0;d<=6;d++)   porDia[d]={svc:0,fact:0};
+
+      allRegs.forEach(r => {
+        if (kpisBarbero[r.bid]) {
+          kpisBarbero[r.bid].svc++;
+          kpisBarbero[r.bid].fact += r.precio||0;
+          kpisBarbero[r.bid].bb   += (r.bb||0)+(r.propina||0);
+          kpisBarbero[r.bid].servicios[r.snom] = (kpisBarbero[r.bid].servicios[r.snom]||0)+1;
+        }
+        const h = parseInt((r.hora||'00:00').slice(0,2));
+        if (porHora[h]) { porHora[h].svc++; porHora[h].fact += r.precio||0; }
+        if (r.fecha) {
+          const dow = new Date(r.fecha+'T12:00:00').getDay();
+          const di = dow===0?6:dow-1;
+          porDia[di].svc++; porDia[di].fact+=r.precio||0;
+        }
+      });
+      setTendData({ kpisBarbero, porHora, porDia, totalRegs: allRegs.length });
+    } catch {}
+  };
 
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -513,6 +556,113 @@ export default function AdminScreen({ onLogout }) {
     </ScrollView>
   );
 
+  const renderTendAdmin = () => {
+    if (!tendData) {
+      cargarTendencias();
+      return <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold}/></View>;
+    }
+    const DIAS_SEM = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    const maxHora = Math.max(...Object.values(tendData.porHora).map(x=>x.svc),1);
+    const maxDia  = Math.max(...Object.values(tendData.porDia).map(x=>x.svc),1);
+    return (
+      <ScrollView style={{flex:1,backgroundColor:COLORS.bg}} contentContainerStyle={s.content}>
+        <Text style={s.secLbl}>ANÁLISIS DEL MES · {mesPeriodo()}</Text>
+
+        {/* KPIs por barbero */}
+        <Text style={[s.secLbl,{marginTop:8}]}>KPIs POR BARBERO</Text>
+        {BARBEROS.map(b => {
+          const k = tendData.kpisBarbero[b.bid]||{svc:0,fact:0,bb:0,servicios:{}};
+          const tk = k.svc>0?Math.round(k.fact/k.svc):0;
+          const topSvc = Object.entries(k.servicios).sort((a,c)=>c[1]-a[1]).slice(0,3);
+          return (
+            <View key={b.bid} style={[s.card,{marginBottom:12}]}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:12}}>
+                <View style={[s.accionAvatar,{backgroundColor:b.bg,width:44,height:44,borderRadius:22}]}>
+                  <Text style={[s.accionLetra,{color:b.color,fontSize:18}]}>{b.letra}</Text>
+                </View>
+                <Text style={{fontSize:18,color:COLORS.text,fontWeight:'700'}}>{b.nombre}</Text>
+              </View>
+              <View style={{flexDirection:'row',gap:8,marginBottom:10}}>
+                <View style={[s.statCard,{flex:1}]}>
+                  <Text style={[s.statVal,{fontSize:20,color:COLORS.ok}]}>{k.svc}</Text>
+                  <Text style={s.statLbl}>Servicios</Text>
+                </View>
+                <View style={[s.statCard,s.statGold,{flex:1}]}>
+                  <Text style={[s.statVal,{fontSize:20,color:COLORS.gold}]}>${fmt(k.bb)}</Text>
+                  <Text style={s.statLbl}>Ingresos</Text>
+                </View>
+                <View style={[s.statCard,{flex:1}]}>
+                  <Text style={[s.statVal,{fontSize:20}]}>${fmt(tk)}</Text>
+                  <Text style={s.statLbl}>Ticket prom.</Text>
+                </View>
+              </View>
+              {topSvc.length>0 && (
+                <View>
+                  <Text style={{fontSize:10,color:COLORS.text3,letterSpacing:2,
+                    textTransform:'uppercase',marginBottom:6}}>Top servicios</Text>
+                  {topSvc.map(([nom,cnt]) => (
+                    <View key={nom} style={{flexDirection:'row',justifyContent:'space-between',
+                      paddingVertical:4,borderBottomWidth:1,borderBottomColor:COLORS.border}}>
+                      <Text style={{fontSize:13,color:COLORS.text2,flex:1}}>{nom}</Text>
+                      <Text style={{fontSize:13,color:COLORS.gold,fontWeight:'600'}}>{cnt}x</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
+
+        {/* Horas punta */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>HORAS PUNTA DEL MES</Text>
+          <View style={{flexDirection:'row',alignItems:'flex-end',gap:2,height:90,marginBottom:8}}>
+            {Array.from({length:10},(_,i)=>i+10).map(h => {
+              const v   = tendData.porHora[h]?.svc||0;
+              const pct = v/maxHora;
+              const barH= Math.max(2,Math.round(pct*78));
+              const color= pct>=0.75?COLORS.gold:pct>=0.4?'rgba(201,168,76,.45)':COLORS.border;
+              return (
+                <View key={h} style={{flex:1,alignItems:'center'}}>
+                  {pct>=0.75&&<Text style={{fontSize:8}}>🔥</Text>}
+                  <View style={{height:barH,backgroundColor:color,width:'80%',
+                    borderTopLeftRadius:2,borderTopRightRadius:2}}/>
+                  <Text style={{fontSize:8,color:COLORS.text3,marginTop:2}}>{h}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Días de la semana */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>DÍAS DE LA SEMANA</Text>
+          {DIAS_SEM.map((dia,d) => {
+            const v   = tendData.porDia[d]?.svc||0;
+            const f   = tendData.porDia[d]?.fact||0;
+            const pct = Math.round(v/maxDia*100);
+            const color= pct>=75?COLORS.gold:pct>=40?'rgba(201,168,76,.45)':COLORS.border;
+            return (
+              <View key={d} style={{flexDirection:'row',alignItems:'center',
+                marginBottom:8,gap:8}}>
+                <Text style={{width:32,fontSize:12,
+                  color:pct>=75?COLORS.gold:COLORS.text2,
+                  fontWeight:pct>=75?'700':'400'}}>{dia}</Text>
+                <View style={{flex:1,height:8,backgroundColor:COLORS.border,
+                  borderRadius:4,overflow:'hidden'}}>
+                  <View style={{height:8,width:pct+'%',backgroundColor:color,borderRadius:4}}/>
+                </View>
+                <Text style={{fontSize:11,color:COLORS.text3,width:28,textAlign:'right'}}>{v}</Text>
+                <Text style={{fontSize:11,color:COLORS.ok,width:72,
+                  textAlign:'right',fontWeight:'600'}}>${fmt(f)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    );
+  };
+
   const renderBarberos = () => (
     <ScrollView>
       <View style={s.content}>
@@ -603,8 +753,9 @@ export default function AdminScreen({ onLogout }) {
       ) : (
         tab === 'resumen'   ? renderResumen()   :
         tab === 'registrar' ? renderRegistrar() :
-        tab === 'aprobar'   ? renderAprobar()   :
-        tab === 'mensajes'  ? renderMensajes()  :
+        tab === 'aprobar'    ? renderAprobar()    :
+        tab === 'tendencias' ? renderTendAdmin()  :
+        tab === 'mensajes'   ? renderMensajes()   :
         renderBarberos()
       )}
 

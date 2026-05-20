@@ -12,7 +12,7 @@ const PERIODOS = [
   { id: 'semana', label: 'Esta semana' },
   { id: 'mes',    label: 'Este mes'    },
   { id: 'custom', label: 'Fecha...'    },
-  { id: 'todo',   label: 'Historico'   },
+  { id: 'custom2', label: 'Historico' },
 ];
 
 const PAGO_STYLE = {
@@ -24,7 +24,7 @@ const PAGO_STYLE = {
 function getFechaDesde(periodo, customDesde) {
   const d = new Date();
   if (periodo === 'hoy')    return hoy();
-  if (periodo === 'custom') return customDesde || hoy();
+  if (periodo === 'custom' || periodo === 'custom2') return customDesde || hoy();
   if (periodo === 'semana') {
     const dia = d.getDay();
     const diasAtras = dia === 0 ? 6 : dia - 1;
@@ -134,7 +134,7 @@ export default function HoyScreen({ barbero }) {
           <TouchableOpacity key={p.id}
             style={[s.periodoBtn, periodo===p.id && s.periodoBtnOn]}
             onPress={() => {
-              if (p.id === 'custom') { setShowDateModal(true); }
+              if (p.id === 'custom' || p.id === 'custom2') { setShowDateModal(true); }
               else { setPeriodo(p.id); }
             }}>
             <Text style={[s.periodoBtnTxt, periodo===p.id && s.periodoBtnTxtOn]}>
@@ -151,9 +151,47 @@ export default function HoyScreen({ barbero }) {
           <View style={{ backgroundColor: COLORS.s1, borderTopLeftRadius: 20,
             borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
             <Text style={{ fontSize: 18, color: COLORS.text, fontWeight: '600',
-              marginBottom: 20 }}>Seleccionar período</Text>
+              marginBottom: 4 }}>Seleccionar período</Text>
+            <Text style={{ fontSize: 13, color: COLORS.text3, marginBottom: 20 }}>
+              Formato: AAAA-MM-DD (ej: 2026-05-01)
+            </Text>
+            <Text style={{ fontSize: 12, color: COLORS.text3, marginBottom: 8 }}>
+              Atajos rápidos:
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Esta semana', fn: () => {
+                    const d = new Date(); const dia = d.getDay();
+                    d.setDate(d.getDate() - (dia === 0 ? 6 : dia - 1));
+                    setFechaDesde(d.toISOString().slice(0,10)); setFechaHasta(hoy());
+                  }},
+                { label: 'Mes actual', fn: () => {
+                    const d = new Date();
+                    setFechaDesde(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`);
+                    setFechaHasta(hoy());
+                  }},
+                { label: 'Mes anterior', fn: () => {
+                    const d = new Date(); d.setMonth(d.getMonth()-1);
+                    const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0');
+                    const lastDay = new Date(y, d.getMonth()+1, 0).getDate();
+                    setFechaDesde(`${y}-${m}-01`); setFechaHasta(`${y}-${m}-${lastDay}`);
+                  }},
+                { label: 'Últimos 30 días', fn: () => {
+                    const d = new Date(); d.setDate(d.getDate()-30);
+                    setFechaDesde(d.toISOString().slice(0,10)); setFechaHasta(hoy());
+                  }},
+              ].map((a, i) => (
+                <TouchableOpacity key={i}
+                  style={{ paddingHorizontal: 12, paddingVertical: 7,
+                    backgroundColor: COLORS.s2, borderRadius: 20,
+                    borderWidth: 1, borderColor: COLORS.border }}
+                  onPress={a.fn}>
+                  <Text style={{ fontSize: 12, color: COLORS.text2 }}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <Text style={{ fontSize: 13, color: COLORS.text3, marginBottom: 6 }}>
-              Desde (YYYY-MM-DD)
+              Desde (AAAA-MM-DD)
             </Text>
             <TextInput style={{ backgroundColor: COLORS.s2, borderRadius: 10,
               borderWidth: 1, borderColor: COLORS.border2, color: COLORS.text,
