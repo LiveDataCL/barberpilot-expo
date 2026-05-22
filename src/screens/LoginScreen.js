@@ -118,9 +118,9 @@ export default function LoginScreen({ onLogin }) {
 
   // ── GRUPOS DE PERFILES ────────────────────────────────────
   const grupos = [
-    { titulo: '⚡ Administrador', perfiles: [TODOS_PERFILES[0]], color: COLORS.gold },
-    { titulo: '✂️ Barberos',      perfiles: TODOS_PERFILES.slice(1, 4), color: COLORS.ok },
-    { titulo: '👁 Socios',        perfiles: TODOS_PERFILES.slice(4), color: COLORS.blue },
+    { titulo: '⚡ Administrador', perfiles: TODOS_PERFILES.filter(p => p.rol === 'admin'),  color: COLORS.gold },
+    { titulo: '✂️ Barberos',      perfiles: TODOS_PERFILES.filter(p => p.rol === 'barbero'), color: COLORS.ok },
+    { titulo: '👁 Socios',        perfiles: TODOS_PERFILES.filter(p => p.rol === 'socio'),   color: COLORS.blue },
   ];
 
   // ── PANTALLA SELECCIÓN ────────────────────────────────────

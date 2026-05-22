@@ -2,7 +2,7 @@
   "expo": {
     "name": "BarberPilot",
     "slug": "barberpilot",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#080706",
@@ -32,7 +32,10 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO"
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "plugins": [
@@ -53,10 +56,21 @@
         {
           "photosPermission": "BarberPilot necesita acceso a tu galería."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#c9a84c",
+          "defaultChannel": "default",
+          "sounds": []
+        }
       ]
     ],
     "updates": {
-      "enabled": false
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {
       "policy": "sdkVersion"
@@ -64,8 +78,9 @@
     "icon": "./assets/icon.png",
     "extra": {
       "eas": {
-        "projectId": "0c11a561-1563-4a60-b89d-b820b49186a1"
+        "projectId": "198017e2-e97b-4995-b52d-b442fe9d316e"
       }
-    }
+    },
+    "owner": "barberpilot"
   }
 }
