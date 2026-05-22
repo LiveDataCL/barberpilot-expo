@@ -188,7 +188,7 @@ export default function SocioScreen() {
           <TouchableOpacity key={p.id}
             style={[s.periodoBtn, periodo === p.id && s.periodoBtnOn]}
             onPress={() => {
-              if (p.id === 'custom') setShowModal(true);
+              if (p.id === 'custom') setShowCal(true);
               else setPeriodo(p.id);
             }}>
             <Text style={[s.periodoBtnTxt, periodo === p.id && s.periodoBtnTxtOn]}>

@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
+
+// Controla cómo se muestran las notificaciones con la app abierta
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge:  false,
+  }),
+});
 
 import { COLORS } from './src/constants';
 import LoginScreen      from './src/screens/LoginScreen';
@@ -33,6 +43,26 @@ export default function App() {
   const [tab, setTab]             = useState('hoy');
   const [showAvatar, setShowAvatar] = useState(false);
   const [avatarEmoji, setAvatarEmoji] = useState(null);
+
+  // Solicitar permiso de notificaciones al iniciar
+  useEffect(() => {
+    (async () => {
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      let finalStatus = existing;
+      if (existing !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'BarberPilot',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#c9a84c',
+        });
+      }
+    })();
+  }, []);
 
   const logout = () => { setUsuario(null); setTab('hoy'); };
 
