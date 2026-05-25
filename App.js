@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
+import { API_URL } from './src/constants';
 
 // Controla cómo se muestran las notificaciones con la app abierta
 Notifications.setNotificationHandler({
@@ -38,13 +39,16 @@ const TABS_BARBERO = [
   { id: 'config',    label: 'Config',     icon: '⚙️' },
 ];
 
+const PROJECT_ID = '198017e2-e97b-4995-b52d-b442fe9d316e';
+
 export default function App() {
   const [usuario, setUsuario]     = useState(null);
   const [tab, setTab]             = useState('hoy');
   const [showAvatar, setShowAvatar] = useState(false);
   const [avatarEmoji, setAvatarEmoji] = useState(null);
+  const pushTokenRef = useRef(null);
 
-  // Solicitar permiso de notificaciones al iniciar
+  // Solicitar permiso de notificaciones y obtener push token
   useEffect(() => {
     (async () => {
       const { status: existing } = await Notifications.getPermissionsAsync();
@@ -52,6 +56,12 @@ export default function App() {
       if (existing !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
+      }
+      if (finalStatus === 'granted') {
+        try {
+          const { data } = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
+          pushTokenRef.current = data;
+        } catch (_) {}
       }
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
@@ -64,13 +74,26 @@ export default function App() {
     })();
   }, []);
 
+  const handleLogin = async (user) => {
+    setUsuario(user);
+    if (pushTokenRef.current && user?.bid) {
+      try {
+        await fetch(`${API_URL}/push/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bid: user.bid, token: pushTokenRef.current }),
+        });
+      } catch (_) {}
+    }
+  };
+
   const logout = () => { setUsuario(null); setTab('hoy'); };
 
   if (!usuario) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar style="light" />
-        <LoginScreen onLogin={setUsuario} />
+        <LoginScreen onLogin={handleLogin} />
       </GestureHandlerRootView>
     );
   }

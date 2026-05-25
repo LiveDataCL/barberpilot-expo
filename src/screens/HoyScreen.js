@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
+import HoyWidget from './HoyWidget';
 
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
@@ -159,6 +160,11 @@ export default function HoyScreen({ barbero }) {
         <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>
       ) : (
         <>
+          {/* Widget animado — solo en vista Hoy */}
+          {periodo === 'hoy' && (
+            <HoyWidget n={n} bb={bb} barbero={barbero} />
+          )}
+
           {/* Hero */}
           <View style={s.hero}>
             <Text style={s.heroNum}>{n}</Text>
