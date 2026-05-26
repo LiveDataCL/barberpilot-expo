@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
+import MetaBanner from './MetaBanner';
 import { updateDayNotification } from '../services/DayNotification';
 
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
@@ -167,6 +168,11 @@ export default function HoyScreen({ barbero }) {
         <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>
       ) : (
         <>
+          {/* Banner de meta */}
+          {['hoy', 'semana', 'mes'].includes(periodo) && (
+            <MetaBanner periodo={periodo} svc={n} fact={fact} />
+          )}
+
           {/* Hero */}
           <View style={s.hero}>
             <Text style={s.heroNum}>{n}</Text>

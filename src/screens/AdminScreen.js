@@ -2,8 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, TextInput, Alert,
-  Modal, Dimensions,
+  Modal, Dimensions, Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import * as SecureStore from 'expo-secure-store';
 import { COLORS, fmt, fmtM, hoy, mesPeriodo, BARBEROS, SERVICIOS } from '../constants';
 import { api } from '../services/api';
 
@@ -11,11 +14,12 @@ const API_URL = 'https://barberpilot-api-production.up.railway.app';
 const { width } = Dimensions.get('window');
 
 const TABS_ADMIN = [
-  { id: 'resumen',    label: 'Resumen',    icon: '📊' },
-  { id: 'registrar',  label: 'Registrar',  icon: '➕' },
-  { id: 'aprobar',    label: 'Aprobar',    icon: '✅' },
-  { id: 'tendencias', label: 'Análisis',   icon: '🔥' },
-  { id: 'mensajes',   label: 'Mensajes',   icon: '💬' },
+  { id: 'resumen',    label: 'Resumen',   icon: '📊' },
+  { id: 'registrar',  label: 'Registrar', icon: '➕' },
+  { id: 'aprobar',    label: 'Aprobar',   icon: '✅' },
+  { id: 'tendencias', label: 'Análisis',  icon: '🔥' },
+  { id: 'mensajes',   label: 'Mensajes',  icon: '💬' },
+  { id: 'barberos',   label: 'Perfiles',  icon: '👤' },
 ];
 
 export default function AdminScreen({ onLogout }) {
@@ -45,6 +49,9 @@ export default function AdminScreen({ onLogout }) {
   // ── Barbero seleccionado para ver su perfil ──────────────────
   const [verBarbero, setVerBarbero] = useState(null);
   const [datosBarbero, setDatosBarbero] = useState(null);
+
+  // ── Avatares de barberos ──────────────────────────────────────
+  const [avatarImgs, setAvatarImgs] = useState({});
 
   const cargarTendencias = async () => {
     try {
@@ -183,6 +190,38 @@ export default function AdminScreen({ onLogout }) {
       ]);
       setDatosBarbero({ hoy: hoyRes, mes: mesRes });
     } catch {}
+  };
+
+  useEffect(() => {
+    (async () => {
+      const imgs = {};
+      for (const b of BARBEROS) {
+        const uri = await SecureStore.getItemAsync(`bp_avatar_img_${b.bid}`).catch(() => null);
+        if (uri) imgs[b.bid] = uri;
+      }
+      setAvatarImgs(imgs);
+    })();
+  }, []);
+
+  const cambiarAvatarAdmin = async (b) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Sin permiso', 'Se necesita acceso a la galería'); return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const dir = FileSystem.documentDirectory + 'avatars/';
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+    const dest = dir + `avatar_${b.bid}.jpg`;
+    await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+    await SecureStore.setItemAsync(`bp_avatar_img_${b.bid}`, dest);
+    await SecureStore.deleteItemAsync(`bp_avatar_${b.bid}`).catch(() => {});
+    setAvatarImgs(prev => ({ ...prev, [b.bid]: dest }));
   };
 
   // ── RENDER TABS ─────────────────────────────────────────────
@@ -666,19 +705,34 @@ export default function AdminScreen({ onLogout }) {
   const renderBarberos = () => (
     <ScrollView>
       <View style={s.content}>
-        <Text style={s.secLbl}>PERFIL DE BARBEROS</Text>
+        <Text style={s.secLbl}>PERFILES Y AVATARES</Text>
         {BARBEROS.map(b => (
-          <TouchableOpacity key={b.bid} style={s.barberoPerfil}
-            onPress={() => verPerfilBarbero(b)}>
-            <View style={[s.accionAvatar, { backgroundColor: b.bg, width: 52, height: 52, borderRadius: 26 }]}>
-              <Text style={[s.accionLetra, { color: b.color, fontSize: 22 }]}>{b.letra}</Text>
+          <View key={b.bid} style={s.barberoPerfil}>
+            <View style={{ position: 'relative' }}>
+              <View style={[s.accionAvatar, {
+                backgroundColor: b.bg, width: 56, height: 56,
+                borderRadius: 28, overflow: 'hidden',
+              }]}>
+                {avatarImgs[b.bid]
+                  ? <Image source={{ uri: avatarImgs[b.bid] }} style={{ width: 56, height: 56 }} />
+                  : <Text style={[s.accionLetra, { color: b.color, fontSize: 24 }]}>{b.letra}</Text>
+                }
+              </View>
             </View>
             <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={s.barberoPNom}>{b.nombre}</Text>
-              <Text style={s.barberoPSub}>Ver producción · Enviar nota</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <TouchableOpacity style={s.btnBarberoAcc}
+                  onPress={() => verPerfilBarbero(b)}>
+                  <Text style={s.btnBarberoAccTxt}>📊 Producción</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.btnBarberoAcc, { borderColor: 'rgba(201,168,76,.4)' }]}
+                  onPress={() => cambiarAvatarAdmin(b)}>
+                  <Text style={[s.btnBarberoAccTxt, { color: COLORS.gold }]}>📷 Avatar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <Text style={{ fontSize: 22, color: COLORS.text3 }}>›</Text>
-          </TouchableOpacity>
+          </View>
         ))}
 
         {/* Detalle del barbero seleccionado */}
@@ -751,8 +805,8 @@ export default function AdminScreen({ onLogout }) {
       {loading ? (
         <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>
       ) : (
-        tab === 'resumen'   ? renderResumen()   :
-        tab === 'registrar' ? renderRegistrar() :
+        tab === 'resumen'    ? renderResumen()    :
+        tab === 'registrar'  ? renderRegistrar()  :
         tab === 'aprobar'    ? renderAprobar()    :
         tab === 'tendencias' ? renderTendAdmin()  :
         tab === 'mensajes'   ? renderMensajes()   :
@@ -875,6 +929,10 @@ const s = StyleSheet.create({
     borderColor: COLORS.border, padding: 16, marginBottom: 10 },
   barberoPNom: { fontSize: 20, color: COLORS.text, fontWeight: '600' },
   barberoPSub: { fontSize: 12, color: COLORS.text3, marginTop: 2 },
+  btnBarberoAcc: { paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: COLORS.s2, borderRadius: 10, borderWidth: 1,
+    borderColor: COLORS.border },
+  btnBarberoAccTxt: { fontSize: 12, color: COLORS.text2, fontWeight: '600' },
 
   card:     { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.border, padding: 18 },
