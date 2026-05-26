@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Vibration, Animated, Dimensions, Alert, Image,
+  Vibration, Animated, Dimensions, Alert, Image, ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
@@ -136,7 +136,8 @@ export default function LoginScreen({ onLogin }) {
         <View style={s.divider} />
         <Text style={s.pregunta}>¿QUIÉN ERES?</Text>
 
-        <View style={s.grupos}>
+        <ScrollView style={s.grupos} showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 8 }}>
           {grupos.map(g => (
             <View key={g.titulo}>
               <Text style={[s.grupoLbl, { color: g.color }]}>{g.titulo}</Text>
@@ -162,7 +163,7 @@ export default function LoginScreen({ onLogin }) {
               ))}
             </View>
           ))}
-        </View>
+        </ScrollView>
       </LinearGradient>
     );
   }
@@ -241,7 +242,7 @@ const s = StyleSheet.create({
   divider:   { width: 40, height: 1, backgroundColor: COLORS.gold3, marginVertical: 16 },
   pregunta:  { fontSize: 12, color: COLORS.text2, letterSpacing: 3.5, textTransform: 'uppercase' },
 
-  grupos:    { width: '100%', gap: 4 },
+  grupos:    { width: '100%', flex: 1 },
   grupoLbl:  { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase',
     marginBottom: 6, marginTop: 10, fontWeight: '700' },
   perfilBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,.06)',

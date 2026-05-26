@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator, TextInput, Alert,
   Modal, Dimensions,
 } from 'react-native';
-import { COLORS, fmt, fmtM, hoy, mesPeriodo, BARBEROS } from '../constants';
+import { COLORS, fmt, fmtM, hoy, mesPeriodo, BARBEROS, SERVICIOS } from '../constants';
 import { api } from '../services/api';
 
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
