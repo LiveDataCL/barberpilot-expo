@@ -1,12 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
-import { API_URL } from './src/constants';
+import * as Device from 'expo-device';
+import { API_URL, COLORS } from './src/constants';
+import LoginScreen       from './src/screens/LoginScreen';
+import HoyScreen         from './src/screens/HoyScreen';
+import RegistrarScreen   from './src/screens/RegistrarScreen';
+import MesScreen         from './src/screens/MesScreen';
+import ProgresoScreen    from './src/screens/ProgresoScreen';
+import LiquidacionScreen from './src/screens/LiquidacionScreen';
+import ConfigScreen      from './src/screens/ConfigScreen';
+import MensajesScreen    from './src/screens/MensajesScreen';
+import AdminScreen       from './src/screens/AdminScreen';
+import SocioScreen       from './src/screens/SocioScreen';
+import TendenciasScreen  from './src/screens/TendenciasScreen';
+import AvatarScreen      from './src/screens/AvatarScreen';
 
-// Controla cómo se muestran las notificaciones con la app abierta
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -15,77 +27,61 @@ Notifications.setNotificationHandler({
   }),
 });
 
-import { COLORS } from './src/constants';
-import LoginScreen      from './src/screens/LoginScreen';
-import HoyScreen        from './src/screens/HoyScreen';
-import RegistrarScreen  from './src/screens/RegistrarScreen';
-import MesScreen        from './src/screens/MesScreen';
-import ProgresoScreen   from './src/screens/ProgresoScreen';
-import LiquidacionScreen from './src/screens/LiquidacionScreen';
-import ConfigScreen     from './src/screens/ConfigScreen';
-import MensajesScreen   from './src/screens/MensajesScreen';
-import AdminScreen      from './src/screens/AdminScreen';
-import SocioScreen      from './src/screens/SocioScreen';
-import TendenciasScreen from './src/screens/TendenciasScreen';
-import AvatarScreen     from './src/screens/AvatarScreen';
-
-const TABS_BARBERO = [
-  { id: 'hoy',       label: 'Hoy',        icon: '✂️' },
-  { id: 'registrar', label: 'Registrar',  icon: '➕' },
-  { id: 'mes',       label: 'Mi Mes',     icon: '📊' },
-  { id: 'tendencias',label: 'Tendencias', icon: '🔥' },
-  { id: 'cobrar',    label: 'Cobrar',     icon: '💰' },
-  { id: 'mensajes',  label: 'Notas',      icon: '💬' },
-  { id: 'config',    label: 'Config',     icon: '⚙️' },
-];
-
 const PROJECT_ID = '198017e2-e97b-4995-b52d-b442fe9d316e';
 
+const TABS_BARBERO = [
+  { id: 'hoy',        label: 'Hoy',        icon: '✂️' },
+  { id: 'registrar',  label: 'Registrar',  icon: '➕' },
+  { id: 'mes',        label: 'Mi Mes',     icon: '📊' },
+  { id: 'tendencias', label: 'Tendencias', icon: '🔥' },
+  { id: 'cobrar',     label: 'Cobrar',     icon: '💰' },
+  { id: 'mensajes',   label: 'Notas',      icon: '💬' },
+  { id: 'config',     label: 'Config',     icon: '⚙️' },
+];
+
+async function registrarPushToken(bid) {
+  try {
+    if (!Device.isDevice) return;
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return;
+    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
+    await fetch(`${API_URL}/push/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bid, token }),
+    });
+  } catch (_) {}
+}
+
 export default function App() {
-  const [usuario, setUsuario]     = useState(null);
-  const [tab, setTab]             = useState('hoy');
+  const [usuario, setUsuario]       = useState(null);
+  const [tab, setTab]               = useState('hoy');
   const [showAvatar, setShowAvatar] = useState(false);
   const [avatarEmoji, setAvatarEmoji] = useState(null);
-  const pushTokenRef = useRef(null);
 
-  // Solicitar permiso de notificaciones y obtener push token
+  // Canal Android
   useEffect(() => {
-    (async () => {
-      const { status: existing } = await Notifications.getPermissionsAsync();
-      let finalStatus = existing;
-      if (existing !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus === 'granted') {
-        try {
-          const { data } = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
-          pushTokenRef.current = data;
-        } catch (_) {}
-      }
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'BarberPilot',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#c9a84c',
-        });
-      }
-    })();
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'BarberPilot',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#c9a84c',
+      });
+    }
   }, []);
 
-  const handleLogin = async (user) => {
-    setUsuario(user);
-    if (pushTokenRef.current && user?.bid) {
-      try {
-        await fetch(`${API_URL}/push/token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bid: user.bid, token: pushTokenRef.current }),
-        });
-      } catch (_) {}
+  // Registrar push token cuando un barbero hace login
+  useEffect(() => {
+    if (usuario?.rol === 'barbero') {
+      registrarPushToken(usuario.bid);
     }
-  };
+  }, [usuario]);
 
   const logout = () => { setUsuario(null); setTab('hoy'); };
 
@@ -93,7 +89,7 @@ export default function App() {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar style="light" />
-        <LoginScreen onLogin={handleLogin} />
+        <LoginScreen onLogin={setUsuario} />
       </GestureHandlerRootView>
     );
   }
