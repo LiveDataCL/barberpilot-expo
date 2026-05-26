@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
-import HoyWidget from './HoyWidget';
+import { updateDayNotification } from '../services/DayNotification';
 
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
@@ -99,6 +99,13 @@ export default function HoyScreen({ barbero }) {
         }
       });
       setRegs(regsNew);
+      // Actualizar notificación persistente solo en vista de hoy
+      if (periodo === 'hoy') {
+        const _n    = regsNew.length;
+        const _fact = regsNew.reduce((a, r) => a + (r.precio || 0), 0);
+        const _bb   = regsNew.reduce((a, r) => a + (r.bb || 0) + (r.propina || 0), 0);
+        updateDayNotification(barbero, _n, _fact, _bb);
+      }
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -160,11 +167,6 @@ export default function HoyScreen({ barbero }) {
         <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>
       ) : (
         <>
-          {/* Widget animado — solo en vista Hoy */}
-          {periodo === 'hoy' && (
-            <HoyWidget n={n} bb={bb} barbero={barbero} />
-          )}
-
           {/* Hero */}
           <View style={s.hero}>
             <Text style={s.heroNum}>{n}</Text>

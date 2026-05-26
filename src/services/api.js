@@ -20,7 +20,7 @@ export const api = {
 
   // Registrar servicio (pendiente de aprobación)
   registrar: (reg) =>
-    call('/registros/barbero', {
+    call('/registros', {
       method: 'POST',
       body: JSON.stringify(reg),
     }),

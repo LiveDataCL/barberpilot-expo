@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SERVICIOS, fmt, hoy } from '../constants';
 import { api } from '../services/api';
+import { updateDayNotification } from '../services/DayNotification';
 
 const { width } = Dimensions.get('window');
 
@@ -69,6 +70,25 @@ export default function RegistrarScreen({ barbero }) {
     ]);
   };
 
+  // ── Buscar cliente por teléfono ───────────────────────────
+  const buscarClientePorTel = async (tel) => {
+    setCliTel(tel);
+    if (tel.length < 8) { setCliEncontrado(false); return; }
+    setCliBuscando(true);
+    try {
+      const r = await fetch(`${API_URL}/clientes?tel=${encodeURIComponent(tel)}`).then(x => x.json());
+      if (r.ok && r.cliente) {
+        setCliNombre(r.cliente.nombre || '');
+        setCliCorreo(r.cliente.correo || '');
+        setCliNotas(r.cliente.notas || '');
+        setCliEncontrado(true);
+      } else {
+        setCliEncontrado(false);
+      }
+    } catch { setCliEncontrado(false); }
+    setCliBuscando(false);
+  };
+
   // ── Enviar ────────────────────────────────────────────────
   const enviar = async () => {
     if (precio <= 0) { Alert.alert('Falta el precio', 'Ingresa el precio del servicio'); return; }
@@ -89,22 +109,37 @@ export default function RegistrarScreen({ barbero }) {
     setEnviando(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      const ts  = Date.now();
-      const now = new Date();
-      const hora = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      const ts    = Date.now();
+      const now   = new Date();
+      const hora  = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       const regId = `TK${ts}`;
+      const comRate = pago === 'debito' ? 0.43 : 0.50;
+      const precioNum  = Number(precio) || 0;
+      const propinaNum = Number(propina) || 0;
+      const bbBase     = Math.round(precioNum * comRate);
 
       const reg = {
-        id: regId, bid: barbero.bid, bnom: barbero.nombre,
-        sid: svc.id,
-        snom: svc.id === 'custom' ? nombreCustom.trim() : svc.nom,
-        precio, pago, com, bb, neg,
-        propina: parseInt(propina) || 0,
-        fecha: hoy(), hora, ts,
+        id:     regId,
+        bid:    barbero.bid,
+        bnom:   barbero.nombre,
+        sid:    svc.id || 'custom',
+        snom:   svc.id === 'custom' ? (nombreCustom.trim() || 'Especial') : (svc.nom || svc.nombre),
+        precio: precioNum,
+        pago,
+        com:    comRate,
+        bb:     bbBase,
+        neg:    precioNum - bbBase,
+        propina: propinaNum,
+        fecha:  hoy(),
+        hora,
+        ts,
       };
 
       const res = await api.registrar(reg);
       if (!res.ok) throw new Error(res.error || 'Error al registrar');
+
+      // Actualizar notificación persistente del día
+      updateDayNotification(barbero, (res.n_hoy ?? 1), (res.fact_hoy ?? reg.precio), (res.bb_hoy ?? reg.bb));
 
       // Subir foto si existe
       if (foto?.base64) {
