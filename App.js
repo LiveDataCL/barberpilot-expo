@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import * as SecureStore from 'expo-secure-store';
 import { API_URL, COLORS } from './src/constants';
 import LoginScreen       from './src/screens/LoginScreen';
 import HoyScreen         from './src/screens/HoyScreen';
@@ -59,10 +60,11 @@ async function registrarPushToken(bid) {
 }
 
 export default function App() {
-  const [usuario, setUsuario]       = useState(null);
-  const [tab, setTab]               = useState('hoy');
-  const [showAvatar, setShowAvatar] = useState(false);
+  const [usuario, setUsuario]         = useState(null);
+  const [tab, setTab]                 = useState('hoy');
+  const [showAvatar, setShowAvatar]   = useState(false);
   const [avatarEmoji, setAvatarEmoji] = useState(null);
+  const [avatarImage, setAvatarImage] = useState(null);
 
   // Canal Android
   useEffect(() => {
@@ -76,11 +78,17 @@ export default function App() {
     }
   }, []);
 
-  // Registrar push token cuando un barbero hace login
+  // Registrar push token + cargar avatar cuando un barbero hace login
   useEffect(() => {
-    if (usuario?.rol === 'barbero') {
-      registrarPushToken(usuario.bid);
-    }
+    if (!usuario?.bid) return;
+    if (usuario.rol === 'barbero') registrarPushToken(usuario.bid);
+    // Cargar avatar guardado
+    SecureStore.getItemAsync(`bp_avatar_img_${usuario.bid}`)
+      .then(uri => { if (uri) setAvatarImage(uri); })
+      .catch(() => {});
+    SecureStore.getItemAsync(`bp_avatar_${usuario.bid}`)
+      .then(em => { if (em && !avatarImage) setAvatarEmoji(em); })
+      .catch(() => {});
   }, [usuario]);
 
   const logout = () => { setUsuario(null); setTab('hoy'); };
@@ -168,9 +176,12 @@ export default function App() {
           <View style={s.header}>
             <TouchableOpacity onPress={() => setShowAvatar(true)}>
               <View style={[s.avatarSm, { backgroundColor: usuario.bg }]}>
-                <Text style={[s.avatarLetra, { color: usuario.color }]}>
-                  {avatarEmoji || usuario.letra}
-                </Text>
+                {avatarImage
+                  ? <Image source={{ uri: avatarImage }} style={s.avatarImg} />
+                  : <Text style={[s.avatarLetra, { color: usuario.color }]}>
+                      {avatarEmoji || usuario.letra}
+                    </Text>
+                }
               </View>
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
@@ -187,8 +198,14 @@ export default function App() {
           {showAvatar && (
             <View style={StyleSheet.absoluteFillObject}>
               <AvatarScreen barbero={{...usuario, letra: avatarEmoji || usuario.letra}}
-                onClose={(emoji) => {
-                  if (emoji) setAvatarEmoji(emoji);
+                onClose={(result) => {
+                  if (result?.type === 'image') {
+                    setAvatarImage(result.uri);
+                    setAvatarEmoji(null);
+                  } else if (result?.type === 'emoji') {
+                    setAvatarEmoji(result.emoji);
+                    setAvatarImage(null);
+                  }
                   setShowAvatar(false);
                 }} />
             </View>
@@ -219,9 +236,10 @@ const s = StyleSheet.create({
   header:   { flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#0f0d08', borderBottomWidth: 1,
     borderBottomColor: COLORS.border2, paddingHorizontal: 18, paddingVertical: 14 },
-  avatarSm: { width: 40, height: 40, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center' },
-  avatarLetra: { fontSize: 18, fontWeight: '700' },
+  avatarSm:  { width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImg:  { width: 40, height: 40, borderRadius: 20 },
+  avatarLetra:{ fontSize: 18, fontWeight: '700' },
   hdrName:  { fontSize: 20, color: COLORS.text, fontWeight: '500', letterSpacing: 0.5 },
   hdrSub:   { fontSize: 10, color: COLORS.gold, letterSpacing: 2.5,
     textTransform: 'uppercase', marginTop: 1 },
