@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -40,12 +40,10 @@ const TABS_BARBERO = [
 ];
 
 async function registrarPushToken(bid) {
+  const log = ['bid: ' + bid, 'OS: ' + Platform.OS, 'isDevice: ' + Device.isDevice];
   try {
-    console.log('[PUSH] Iniciando registro para bid:', bid);
-
-    console.log('[PUSH] Device.isDevice:', Device.isDevice, '| Platform:', Platform.OS);
     if (Platform.OS === 'web') {
-      console.warn('[PUSH] Web — abortando');
+      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: web');
       return;
     }
 
@@ -57,21 +55,21 @@ async function registrarPushToken(bid) {
         lightColor: '#c9a84c',
         sound: 'default',
       });
-      console.log('[PUSH] Canal Android creado');
+      log.push('canal: ok');
     }
 
     const { status: existing } = await Notifications.getPermissionsAsync();
-    console.log('[PUSH] Permiso existente:', existing);
+    log.push('perm existente: ' + existing);
 
     let finalStatus = existing;
     if (existing !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
-      console.log('[PUSH] Nuevo permiso:', finalStatus);
+      log.push('nuevo perm: ' + finalStatus);
     }
 
     if (finalStatus !== 'granted') {
-      console.warn('[PUSH] Permiso denegado — abortando');
+      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: permiso denegado');
       return;
     }
 
@@ -80,23 +78,24 @@ async function registrarPushToken(bid) {
       Constants.manifest2?.extra?.expoClient?.extra?.eas?.projectId ??
       Constants.manifest?.extra?.eas?.projectId;
 
-    console.log('[PUSH] projectId:', projectId);
+    log.push('projectId: ' + (projectId ? projectId.slice(0, 8) + '...' : 'NONE'));
 
     if (!projectId) {
-      console.error('[PUSH] projectId no encontrado — abortando');
+      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: sin projectId');
       return;
     }
 
+    log.push('obteniendo token...');
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = tokenData?.data;
-    console.log('[PUSH] Token obtenido:', token);
+    log.push('token: ' + (token ? token.slice(0, 25) + '...' : 'VACÍO'));
 
     if (!token) {
-      console.error('[PUSH] Token vacío — abortando');
+      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: token vacío');
       return;
     }
 
-    console.log('[PUSH] Enviando token al API para bid:', bid);
+    log.push('enviando al API...');
     const response = await fetch(
       'https://barberpilot-api-production.up.railway.app/push/token',
       {
@@ -106,17 +105,12 @@ async function registrarPushToken(bid) {
       }
     );
     const data = await response.json();
-    console.log('[PUSH] Respuesta del API:', JSON.stringify(data));
+    log.push('api: ' + JSON.stringify(data));
 
-    if (data.ok) {
-      console.log('[PUSH] ✅ Token registrado exitosamente');
-    } else {
-      console.error('[PUSH] ❌ Error del API:', data.error);
-    }
+    Alert.alert(data.ok ? 'PUSH ✅' : 'PUSH ❌', log.join('\n'));
 
   } catch (error) {
-    console.error('[PUSH] Error crítico:', error.message);
-    console.error('[PUSH] Stack:', error.stack);
+    Alert.alert('PUSH ERROR ❌', log.join('\n') + '\n\nERROR: ' + error.message);
   }
 }
 
