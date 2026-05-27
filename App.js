@@ -29,9 +29,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId
-  ?? '198017e2-e97b-4995-b52d-b442fe9d316e';
-
 const TABS_BARBERO = [
   { id: 'hoy',        label: 'Hoy',        icon: '✂️' },
   { id: 'registrar',  label: 'Registrar',  icon: '➕' },
@@ -44,23 +41,83 @@ const TABS_BARBERO = [
 
 async function registrarPushToken(bid) {
   try {
-    if (!Device.isDevice) return;
-    if (!PROJECT_ID) { console.warn('Push: projectId no encontrado en app.json'); return; }
+    console.log('[PUSH] Iniciando registro para bid:', bid);
+
+    console.log('[PUSH] Device.isDevice:', Device.isDevice);
+    if (!Device.isDevice) {
+      console.warn('[PUSH] No es dispositivo físico — abortando');
+      return;
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'BarberPilot',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#c9a84c',
+        sound: 'default',
+      });
+      console.log('[PUSH] Canal Android creado');
+    }
+
     const { status: existing } = await Notifications.getPermissionsAsync();
+    console.log('[PUSH] Permiso existente:', existing);
+
     let finalStatus = existing;
     if (existing !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
+      console.log('[PUSH] Nuevo permiso:', finalStatus);
     }
-    if (finalStatus !== 'granted') return;
-    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
-    console.log('Push token:', token);
-    await fetch(`${API_URL}/push/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bid, token }),
-    });
-  } catch (_) {}
+
+    if (finalStatus !== 'granted') {
+      console.warn('[PUSH] Permiso denegado — abortando');
+      return;
+    }
+
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.manifest2?.extra?.expoClient?.extra?.eas?.projectId ??
+      Constants.manifest?.extra?.eas?.projectId;
+
+    console.log('[PUSH] projectId:', projectId);
+
+    if (!projectId) {
+      console.error('[PUSH] projectId no encontrado — abortando');
+      return;
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = tokenData?.data;
+    console.log('[PUSH] Token obtenido:', token);
+
+    if (!token) {
+      console.error('[PUSH] Token vacío — abortando');
+      return;
+    }
+
+    console.log('[PUSH] Enviando token al API para bid:', bid);
+    const response = await fetch(
+      'https://barberpilot-api-production.up.railway.app/push/token',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bid, token }),
+      }
+    );
+    const data = await response.json();
+    console.log('[PUSH] Respuesta del API:', JSON.stringify(data));
+
+    if (data.ok) {
+      console.log('[PUSH] ✅ Token registrado exitosamente');
+    } else {
+      console.error('[PUSH] ❌ Error del API:', data.error);
+    }
+
+  } catch (error) {
+    console.error('[PUSH] Error crítico:', error.message);
+    console.error('[PUSH] Stack:', error.stack);
+  }
 }
 
 export default function App() {
@@ -70,23 +127,10 @@ export default function App() {
   const [avatarEmoji, setAvatarEmoji] = useState(null);
   const [avatarImage, setAvatarImage] = useState(null);
 
-  // Canal Android
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'BarberPilot',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#c9a84c',
-        sound: 'default',
-      });
-    }
-  }, []);
-
-  // Registrar push token + cargar avatar cuando un barbero hace login
+  // Registrar push token + cargar avatar cuando un barbero/admin hace login
   useEffect(() => {
     if (!usuario?.bid) return;
-    if (usuario.rol === 'barbero') registrarPushToken(usuario.bid);
+    if (usuario.rol === 'barbero' || usuario.rol === 'admin') registrarPushToken(usuario.bid);
     // Cargar avatar guardado
     SecureStore.getItemAsync(`bp_avatar_img_${usuario.bid}`)
       .then(uri => { if (uri) setAvatarImage(uri); })
