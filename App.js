@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 import { API_URL, COLORS } from './src/constants';
 import LoginScreen       from './src/screens/LoginScreen';
 import HoyScreen         from './src/screens/HoyScreen';
@@ -28,7 +29,8 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const PROJECT_ID = '198017e2-e97b-4995-b52d-b442fe9d316e';
+const PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId
+  ?? '198017e2-e97b-4995-b52d-b442fe9d316e';
 
 const TABS_BARBERO = [
   { id: 'hoy',        label: 'Hoy',        icon: '✂️' },
@@ -43,6 +45,7 @@ const TABS_BARBERO = [
 async function registrarPushToken(bid) {
   try {
     if (!Device.isDevice) return;
+    if (!PROJECT_ID) { console.warn('Push: projectId no encontrado en app.json'); return; }
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
     if (existing !== 'granted') {
@@ -51,6 +54,7 @@ async function registrarPushToken(bid) {
     }
     if (finalStatus !== 'granted') return;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
+    console.log('Push token:', token);
     await fetch(`${API_URL}/push/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -74,6 +78,7 @@ export default function App() {
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#c9a84c',
+        sound: 'default',
       });
     }
   }, []);

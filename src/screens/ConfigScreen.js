@@ -120,6 +120,20 @@ export default function ConfigScreen({ barbero, onLogout }) {
     return { n, fact, bb, prop, tk, porPago, topSvc, horaMax };
   };
 
+  const testPush = async () => {
+    try {
+      const res = await fetch(`${API_URL}/push/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bid: barbero.bid }),
+      });
+      const json = await res.json();
+      Alert.alert(json.ok ? '✓ Push enviado' : '⚠ Error', json.message || JSON.stringify(json));
+    } catch (e) {
+      Alert.alert('Error de red', e.message);
+    }
+  };
+
   const cambiarPin = async () => {
     if (!pinActual || !pinNuevo || !pinConfirm) {
       setPinMsg({ ok: false, txt: 'Completa todos los campos' }); return;
@@ -281,6 +295,12 @@ export default function ConfigScreen({ barbero, onLogout }) {
           )}
         </>
       ) : null}
+
+      {/* ── TEST PUSH (temporal) ────────────────────────── */}
+      <TouchableOpacity style={[s.logoutBtn, { marginTop: 10, borderColor: COLORS.gold }]}
+        onPress={testPush}>
+        <Text style={[s.logoutTxt, { color: COLORS.gold }]}>🔔 Probar Push</Text>
+      </TouchableOpacity>
 
       {/* ── CERRAR SESIÓN ───────────────────────────────── */}
       <TouchableOpacity style={s.logoutBtn} onPress={onLogout}>
