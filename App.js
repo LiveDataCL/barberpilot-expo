@@ -43,9 +43,9 @@ async function registrarPushToken(bid) {
   try {
     console.log('[PUSH] Iniciando registro para bid:', bid);
 
-    console.log('[PUSH] Device.isDevice:', Device.isDevice);
-    if (!Device.isDevice) {
-      console.warn('[PUSH] No es dispositivo físico — abortando');
+    console.log('[PUSH] Device.isDevice:', Device.isDevice, '| Platform:', Platform.OS);
+    if (Platform.OS === 'web') {
+      console.warn('[PUSH] Web — abortando');
       return;
     }
 
@@ -126,6 +126,18 @@ export default function App() {
   const [showAvatar, setShowAvatar]   = useState(false);
   const [avatarEmoji, setAvatarEmoji] = useState(null);
   const [avatarImage, setAvatarImage] = useState(null);
+
+  // Test directo de red al montar — sin verificaciones
+  useEffect(() => {
+    fetch('https://barberpilot-api-production.up.railway.app/push/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bid: 'TEST', token: 'TEST_TOKEN_' + Date.now() }),
+    })
+      .then(r => r.json())
+      .then(d => console.log('[PUSH TEST DIRECTO]', JSON.stringify(d)))
+      .catch(e => console.error('[PUSH TEST ERROR]', e.message));
+  }, []);
 
   // Registrar push token + cargar avatar cuando un barbero/admin hace login
   useEffect(() => {
