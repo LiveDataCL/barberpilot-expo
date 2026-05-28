@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "915398068654",
+    "project_id": "barberpilot-8df37",
+    "storage_bucket": "barberpilot-8df37.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915398068654:android:2bda350320762bb95ae03f",
+        "android_client_info": {
+          "package_name": "com.saulfino.barberpilot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5tZ-Zk9sxDsQA4Ql715cJXnquwVLqd-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
