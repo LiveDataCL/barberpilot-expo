@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -43,7 +43,7 @@ async function registrarPushToken(bid) {
   const log = ['bid: ' + bid, 'OS: ' + Platform.OS, 'isDevice: ' + Device.isDevice];
   try {
     if (Platform.OS === 'web') {
-      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: web');
+      console.log('[PUSH]', log.join(' | ') + ' → ABORT: web');
       return;
     }
 
@@ -69,7 +69,7 @@ async function registrarPushToken(bid) {
     }
 
     if (finalStatus !== 'granted') {
-      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: permiso denegado');
+      console.log('[PUSH]', log.join(' | ') + ' → ABORT: permiso denegado');
       return;
     }
 
@@ -81,7 +81,7 @@ async function registrarPushToken(bid) {
     log.push('projectId: ' + (projectId ? projectId.slice(0, 8) + '...' : 'NONE'));
 
     if (!projectId) {
-      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: sin projectId');
+      console.log('[PUSH]', log.join(' | ') + ' → ABORT: sin projectId');
       return;
     }
 
@@ -91,13 +91,13 @@ async function registrarPushToken(bid) {
     log.push('token: ' + (token ? token.slice(0, 25) + '...' : 'VACÍO'));
 
     if (!token) {
-      Alert.alert('PUSH DEBUG', log.join('\n') + '\n→ ABORT: token vacío');
+      console.log('[PUSH]', log.join(' | ') + ' → ABORT: token vacío');
       return;
     }
 
     log.push('enviando al API...');
     const response = await fetch(
-      'https://barberpilot-api-production.up.railway.app/push/token',
+      API_URL + '/push/token',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,10 +107,10 @@ async function registrarPushToken(bid) {
     const data = await response.json();
     log.push('api: ' + JSON.stringify(data));
 
-    Alert.alert(data.ok ? 'PUSH ✅' : 'PUSH ❌', log.join('\n'));
+    console.log(data.ok ? '[PUSH ✅]' : '[PUSH ❌]', log.join(' | '));
 
   } catch (error) {
-    Alert.alert('PUSH ERROR ❌', log.join('\n') + '\n\nERROR: ' + error.message);
+    console.error('[PUSH ERROR]', log.join(' | '), 'ERROR:', error.message);
   }
 }
 
@@ -120,18 +120,6 @@ export default function App() {
   const [showAvatar, setShowAvatar]   = useState(false);
   const [avatarEmoji, setAvatarEmoji] = useState(null);
   const [avatarImage, setAvatarImage] = useState(null);
-
-  // Test directo de red al montar — sin verificaciones
-  useEffect(() => {
-    fetch('https://barberpilot-api-production.up.railway.app/push/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bid: 'TEST', token: 'TEST_TOKEN_' + Date.now() }),
-    })
-      .then(r => r.json())
-      .then(d => console.log('[PUSH TEST DIRECTO]', JSON.stringify(d)))
-      .catch(e => console.error('[PUSH TEST ERROR]', e.message));
-  }, []);
 
   // Registrar push token + cargar avatar cuando un barbero/admin hace login
   useEffect(() => {
