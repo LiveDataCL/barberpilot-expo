@@ -125,16 +125,33 @@ export default function App() {
   useEffect(() => {
     if (!usuario?.bid) return;
     if (usuario.rol === 'barbero' || usuario.rol === 'admin') registrarPushToken(usuario.bid);
-    // Cargar avatar guardado
-    SecureStore.getItemAsync(`bp_avatar_img_${usuario.bid}`)
-      .then(uri => { if (uri) setAvatarImage(uri); })
-      .catch(() => {});
-    SecureStore.getItemAsync(`bp_avatar_${usuario.bid}`)
-      .then(em => { if (em && !avatarImage) setAvatarEmoji(em); })
-      .catch(() => {});
+    // Cargar avatar del servidor; fallback a SecureStore si sin red
+    fetch(API_URL + '/barbero/' + usuario.bid + '/avatar')
+      .then(r => r.json())
+      .then(json => {
+        if (json.ok && json.imagen) {
+          setAvatarImage('data:' + (json.mime_type || 'image/jpeg') + ';base64,' + json.imagen);
+          setAvatarEmoji(null);
+        } else {
+          SecureStore.getItemAsync(`bp_avatar_${usuario.bid}`)
+            .then(em => { if (em) setAvatarEmoji(em); })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {
+        SecureStore.getItemAsync(`bp_avatar_img_${usuario.bid}`)
+          .then(uri => { if (uri) setAvatarImage(uri); })
+          .catch(() => {});
+        SecureStore.getItemAsync(`bp_avatar_${usuario.bid}`)
+          .then(em => { if (em) setAvatarEmoji(em); })
+          .catch(() => {});
+      });
   }, [usuario]);
 
-  const logout = () => { setUsuario(null); setTab('hoy'); };
+  const logout = () => {
+    setUsuario(null); setTab('hoy');
+    setAvatarImage(null); setAvatarEmoji(null);
+  };
 
   if (!usuario) {
     return (
@@ -240,15 +257,11 @@ export default function App() {
           {/* Modal Avatar */}
           {showAvatar && (
             <View style={StyleSheet.absoluteFillObject}>
-              <AvatarScreen barbero={{...usuario, letra: avatarEmoji || usuario.letra}}
+              <AvatarScreen
+                barbero={{...usuario, letra: avatarEmoji || usuario.letra}}
+                avatarImage={avatarImage}
                 onClose={(result) => {
-                  if (result?.type === 'image') {
-                    setAvatarImage(result.uri);
-                    setAvatarEmoji(null);
-                  } else if (result?.type === 'emoji') {
-                    setAvatarEmoji(result.emoji);
-                    setAvatarImage(null);
-                  }
+                  if (result?.type === 'emoji') setAvatarEmoji(result.emoji);
                   setShowAvatar(false);
                 }} />
             </View>

@@ -4,7 +4,6 @@ import {
   Alert, ActivityIndicator, Image,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
 
 const AVATARES = {
@@ -16,12 +15,10 @@ const AVATARES = {
 };
 
 const KEY_EMOJI = (bid) => `bp_avatar_${bid}`;
-const KEY_IMG   = (bid) => `bp_avatar_img_${bid}`;
 
-export default function AvatarScreen({ barbero, onClose }) {
+export default function AvatarScreen({ barbero, avatarImage, onClose }) {
   const [categoria,      setCategoria]      = useState('🎭 Personajes');
   const [emoji,          setEmoji]          = useState(barbero.letra);
-  const [selectedImage,  setSelectedImage]  = useState(null);
   const [seleccionHecha, setSeleccionHecha] = useState(false);
   const [guardando,      setGuardando]      = useState(false);
 
@@ -31,76 +28,17 @@ export default function AvatarScreen({ barbero, onClose }) {
       .catch(() => {});
   }, []);
 
-  const seleccionarFoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería para cambiar la foto.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setSelectedImage(result.assets[0].uri);
-    }
-  };
-
   const guardar = async () => {
     setGuardando(true);
     try {
-      if (selectedImage) {
-        await SecureStore.setItemAsync(KEY_IMG(barbero.bid), selectedImage);
-        await SecureStore.deleteItemAsync(KEY_EMOJI(barbero.bid)).catch(() => {});
-        onClose({ type: 'image', uri: selectedImage });
-      } else {
-        await SecureStore.setItemAsync(KEY_EMOJI(barbero.bid), emoji);
-        await SecureStore.deleteItemAsync(KEY_IMG(barbero.bid)).catch(() => {});
-        onClose({ type: 'emoji', emoji });
-      }
+      await SecureStore.setItemAsync(KEY_EMOJI(barbero.bid), emoji);
+      onClose({ type: 'emoji', emoji });
     } catch {
-      Alert.alert('Error', 'No se pudo guardar el avatar.');
+      Alert.alert('Error', 'No se pudo guardar el emoji.');
       setGuardando(false);
     }
   };
 
-  // ─── VISTA CONFIRMACIÓN DE IMAGEN ──────────────────────────────
-  if (selectedImage) {
-    return (
-      <View style={s.container}>
-        <View style={s.header}>
-          <Text style={s.title}>Tu avatar</Text>
-          <TouchableOpacity onPress={() => setSelectedImage(null)}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}>
-            <Text style={s.close}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={s.confirmView}>
-          <View style={[s.avatarBig, { backgroundColor: barbero.bg }]}>
-            <Image source={{ uri: selectedImage }} style={s.avatarImg} />
-          </View>
-          <Text style={s.previewNom}>{barbero.nombre}</Text>
-          <Text style={s.confirmHint}>Foto lista para guardar</Text>
-        </View>
-
-        <View style={s.footer}>
-          <TouchableOpacity style={s.btnCancelar} onPress={() => setSelectedImage(null)}>
-            <Text style={s.btnCancelarTxt}>↩ Volver</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.btnGuardar} onPress={guardar} disabled={guardando}>
-            {guardando
-              ? <ActivityIndicator color={COLORS.bg} />
-              : <Text style={s.btnGuardarTxt}>✓ Usar esta imagen</Text>}
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // ─── VISTA SELECCIÓN DE EMOJI ──────────────────────────────────
   return (
     <View style={s.container}>
 
@@ -112,38 +50,50 @@ export default function AvatarScreen({ barbero, onClose }) {
         </TouchableOpacity>
       </View>
 
+      {/* Preview */}
       <View style={s.preview}>
         <View style={[s.avatarBig, { backgroundColor: barbero.bg }]}>
-          <Text style={s.avatarBigTxt}>{emoji}</Text>
+          {avatarImage
+            ? <Image source={{ uri: avatarImage }} style={s.avatarImg} />
+            : <Text style={s.avatarBigTxt}>{emoji}</Text>
+          }
         </View>
         <Text style={s.previewNom}>{barbero.nombre}</Text>
-        <TouchableOpacity style={s.btnFoto} onPress={seleccionarFoto}>
-          <Text style={s.btnFotoTxt}>📷 Usar foto de galería</Text>
-        </TouchableOpacity>
+        <Text style={s.adminNote}>
+          {avatarImage
+            ? '📸 Foto actualizada por el administrador'
+            : 'Tu foto la actualiza el administrador'}
+        </Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={s.cats} contentContainerStyle={{ paddingHorizontal: 18 }}>
-        {Object.keys(AVATARES).map(cat => (
-          <TouchableOpacity key={cat}
-            style={[s.catBtn, categoria === cat && s.catBtnOn]}
-            onPress={() => setCategoria(cat)}>
-            <Text style={[s.catTxt, categoria === cat && { color: COLORS.gold }]}>{cat}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Emoji selector — solo si no hay foto del servidor */}
+      {!avatarImage && (
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            style={s.cats} contentContainerStyle={{ paddingHorizontal: 18 }}>
+            {Object.keys(AVATARES).map(cat => (
+              <TouchableOpacity key={cat}
+                style={[s.catBtn, categoria === cat && s.catBtnOn]}
+                onPress={() => setCategoria(cat)}>
+                <Text style={[s.catTxt, categoria === cat && { color: COLORS.gold }]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.grid}>
-        {AVATARES[categoria].map((em, i) => (
-          <TouchableOpacity key={i}
-            style={[s.emojiBtn, emoji === em && s.emojiBtnOn]}
-            onPress={() => { setEmoji(em); setSeleccionHecha(true); }}>
-            <Text style={s.emojiTxt}>{em}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.grid}>
+            {AVATARES[categoria].map((em, i) => (
+              <TouchableOpacity key={i}
+                style={[s.emojiBtn, emoji === em && s.emojiBtnOn]}
+                onPress={() => { setEmoji(em); setSeleccionHecha(true); }}>
+                <Text style={s.emojiTxt}>{em}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
 
-      {seleccionHecha && (
+      {/* Botón guardar: solo si eligió un emoji nuevo (sin foto de servidor) */}
+      {!avatarImage && seleccionHecha && (
         <View style={s.footer}>
           <TouchableOpacity style={s.btnCancelar} onPress={() => onClose(null)}>
             <Text style={s.btnCancelarTxt}>Cancelar</Text>
@@ -168,21 +118,14 @@ const s = StyleSheet.create({
   title:        { fontSize: 20, color: COLORS.text, fontWeight: '600' },
   close:        { fontSize: 22, color: COLORS.text3 },
 
-  preview:      { alignItems: 'center', paddingVertical: 16 },
+  preview:      { alignItems: 'center', paddingVertical: 20 },
   avatarBig:    { width: 96, height: 96, borderRadius: 48,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 10, overflow: 'hidden' },
   avatarBigTxt: { fontSize: 50 },
   avatarImg:    { width: 96, height: 96, borderRadius: 48 },
-  previewNom:   { fontSize: 18, color: COLORS.text, fontWeight: '500', marginBottom: 12 },
-
-  confirmView:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 },
-  confirmHint:  { fontSize: 14, color: COLORS.text3, marginTop: 8 },
-
-  btnFoto:      { paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 20, borderWidth: 1, borderColor: COLORS.border,
-    backgroundColor: COLORS.s2 },
-  btnFotoTxt:   { fontSize: 13, color: COLORS.text2 },
+  previewNom:   { fontSize: 18, color: COLORS.text, fontWeight: '500', marginBottom: 6 },
+  adminNote:    { fontSize: 13, color: COLORS.text3, textAlign: 'center', paddingHorizontal: 32 },
 
   cats:         { flexGrow: 0, marginBottom: 12 },
   catBtn:       { paddingHorizontal: 14, paddingVertical: 8, marginRight: 8,
