@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert,
@@ -36,17 +36,6 @@ export default function ColaScreen({ barbero }) {
   const [refreshing,  setRefreshing]  = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
   const [pending,     setPending]     = useState(new Set());
-  const [toastMsg,    setToastMsg]    = useState('');
-  const toastTimer = useRef(null);
-
-  // ── Toast temporal ──────────────────────────────────────────
-  const showToast = useCallback((msg) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToastMsg(msg);
-    toastTimer.current = setTimeout(() => setToastMsg(''), 3500);
-  }, []);
-
-  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   // ── Carga de datos ──────────────────────────────────────────
   const cargar = useCallback(async (silent = false) => {
@@ -102,14 +91,8 @@ export default function ColaScreen({ barbero }) {
       }
     } else {
       // No disponible → Disponible
+      // El backend envía YOUR_TURN automáticamente al marcar IN_SERVICE
       setIsAvailable(true);
-      const next = activeQueue[0];
-      if (next) {
-        try {
-          await api.notify(next.id, 'YOUR_TURN');
-          showToast(`WhatsApp enviado a ${next.client_name}`);
-        } catch {}
-      }
     }
   };
 
@@ -133,7 +116,6 @@ export default function ColaScreen({ barbero }) {
     addPending(entry.id);
     try {
       await api.updateStatus(entry.id, 'DONE');
-      try { await api.notify(entry.id, 'POST_SERVICE'); } catch {}
       await cargar(true);
     } catch {
       Alert.alert('Error', 'No se pudo completar el servicio. Intenta de nuevo.');
@@ -297,12 +279,6 @@ export default function ColaScreen({ barbero }) {
         </View>
       </ScrollView>
 
-      {/* ── Toast ── */}
-      {toastMsg ? (
-        <View style={s.toast} pointerEvents="none">
-          <Text style={s.toastTxt}>{toastMsg}</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -402,13 +378,4 @@ const s = StyleSheet.create({
   statVal: { fontSize: 30, fontWeight: '300', marginBottom: 4 },
   statLbl: { fontSize: 9, color: COLORS.text3, letterSpacing: 2.5, textTransform: 'uppercase' },
 
-  // Toast
-  toast: {
-    position: 'absolute', bottom: 24, left: 16, right: 16,
-    backgroundColor: COLORS.ok, borderRadius: 14,
-    padding: 16, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 10, elevation: 10,
-  },
-  toastTxt: { fontSize: 15, color: '#fff', fontWeight: '600', textAlign: 'center' },
 });
