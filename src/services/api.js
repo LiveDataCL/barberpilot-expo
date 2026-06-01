@@ -37,4 +37,25 @@ export const api = {
     call('/pendientes').then((r) =>
       ({ ...r, pendientes: (r.pendientes || []).filter((p) => p.bid === bid) })
     ),
+
+  // ── Cola / Check-In ────────────────────────────────────────
+  // Cola activa del barbero (barber_id = nombre en minúsculas)
+  queue: (barberId) => call(`/queue?barber=${barberId}`),
+
+  // Estadísticas del día
+  queueStats: () => call('/queue/stats'),
+
+  // Cambiar estado de un turno
+  updateStatus: (id, status) =>
+    call(`/queue/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+
+  // Enviar notificación WhatsApp (se loguea en el servidor)
+  notify: (id, type) =>
+    call(`/queue/${id}/notify`, {
+      method: 'POST',
+      body: JSON.stringify({ type }),
+    }),
 };

@@ -20,6 +20,7 @@ import AdminScreen       from './src/screens/AdminScreen';
 import SocioScreen       from './src/screens/SocioScreen';
 import TendenciasScreen  from './src/screens/TendenciasScreen';
 import AvatarScreen      from './src/screens/AvatarScreen';
+import ColaScreen        from './src/screens/ColaScreen';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -31,6 +32,7 @@ Notifications.setNotificationHandler({
 
 const TABS_BARBERO = [
   { id: 'hoy',        label: 'Hoy',        icon: '✂️' },
+  { id: 'cola',       label: 'Cola',       icon: '📋' },
   { id: 'registrar',  label: 'Registrar',  icon: '➕' },
   { id: 'mes',        label: 'Mi Mes',     icon: '📊' },
   { id: 'tendencias', label: 'Tendencias', icon: '🔥' },
@@ -218,6 +220,7 @@ export default function App() {
   const renderScreen = () => {
     switch (tab) {
       case 'hoy':        return <HoyScreen        barbero={usuario} />;
+      case 'cola':       return <ColaScreen        barbero={usuario} />;
       case 'registrar':  return <RegistrarScreen   barbero={usuario} />;
       case 'mes':        return <MesScreen         barbero={usuario} />;
       case 'tendencias': return <TendenciasScreen  barbero={usuario} />;
