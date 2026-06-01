@@ -6,6 +6,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { COLORS, fmt } from '../constants';
 import { api } from '../services/api';
+import PaymentSheet from '../components/PaymentSheet';
 
 // El app usa bid:'b1'-'b4', la cola usa barber_id:'emerson'|'samuel'|'didian'|'david'
 const queueId = (barbero) => barbero.nombre.toLowerCase();
@@ -34,8 +35,9 @@ export default function ColaScreen({ barbero }) {
   const [hoyData,     setHoyData]     = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
-  const [isAvailable, setIsAvailable] = useState(true);
-  const [pending,     setPending]     = useState(new Set());
+  const [isAvailable,  setIsAvailable]  = useState(true);
+  const [pending,      setPending]      = useState(new Set());
+  const [sheetVisible, setSheetVisible] = useState(false);
 
   // ── Carga de datos ──────────────────────────────────────────
   const cargar = useCallback(async (silent = false) => {
@@ -112,16 +114,8 @@ export default function ColaScreen({ barbero }) {
     }
   };
 
-  const handleCompletar = async (entry) => {
-    addPending(entry.id);
-    try {
-      await api.updateStatus(entry.id, 'DONE');
-      await cargar(true);
-    } catch {
-      Alert.alert('Error', 'No se pudo completar el servicio. Intenta de nuevo.');
-    } finally {
-      removePending(entry.id);
-    }
+  const handleCompletar = () => {
+    setSheetVisible(true);
   };
 
   // ── Loading inicial ─────────────────────────────────────────
@@ -188,13 +182,11 @@ export default function ColaScreen({ barbero }) {
               </View>
             </View>
             <TouchableOpacity
-              style={[s.btn, s.btnCompletar, pending.has(inService.id) && s.btnDisabled]}
+              style={[s.btn, s.btnCompletar, sheetVisible && s.btnDisabled]}
               onPress={() => handleCompletar(inService)}
-              disabled={pending.has(inService.id)}
+              disabled={sheetVisible}
             >
-              <Text style={s.btnCompletarTxt}>
-                {pending.has(inService.id) ? 'Procesando…' : '✅  Completar servicio'}
-              </Text>
+              <Text style={s.btnCompletarTxt}>✅  Completar servicio</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -279,6 +271,16 @@ export default function ColaScreen({ barbero }) {
         </View>
       </ScrollView>
 
+      <PaymentSheet
+        visible={sheetVisible}
+        entry={inService}
+        barbero={barbero}
+        onClose={() => setSheetVisible(false)}
+        onCompleted={() => {
+          setSheetVisible(false);
+          cargar(true);
+        }}
+      />
     </View>
   );
 }
