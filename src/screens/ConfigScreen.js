@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Switch,
+  RefreshControl, ActivityIndicator, Switch, Alert,
 } from 'react-native';
 import { COLORS, fmt, fmtM, mesPeriodo, hoy, TODOS_PERFILES } from '../constants';
 import * as SecureStore from 'expo-secure-store';
@@ -303,8 +303,15 @@ export default function ConfigScreen({ barbero, onLogout }) {
       </TouchableOpacity>
 
       {/* ── CERRAR SESIÓN ───────────────────────────────── */}
-      <TouchableOpacity style={s.logoutBtn} onPress={onLogout}>
-        <Text style={s.logoutTxt}>⇄  Cambiar barbero</Text>
+      <TouchableOpacity style={s.logoutBtn} onPress={() => Alert.alert(
+        'Cerrar sesión',
+        '¿Seguro que quieres salir?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Salir', style: 'destructive', onPress: onLogout },
+        ]
+      )}>
+        <Text style={s.logoutTxt}>🚪 Cerrar sesión</Text>
       </TouchableOpacity>
 
       <View style={{ height: 20 }} />

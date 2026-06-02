@@ -1,21 +1,20 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { COLORS, fmt, fmtM } from '../constants';
-
-const METAS = {
-  hoy:    { svc: 6,   fact: 62500   },
-  semana: { svc: 31,  fact: 375000  },
-  mes:    { svc: 135, fact: 1625000 },
-};
+import { getMetaBarbero } from '../services/metas';
 
 const ETIQUETA = { hoy: 'DÍA', semana: 'SEMANA', mes: 'MES' };
 
-export default function MetaBanner({ periodo, svc, fact }) {
-  const meta = METAS[periodo];
-  if (!meta) return null;
+const AVG_TICKET = 12000; // ticket promedio para derivar meta de servicios
 
-  const pctSvc  = Math.min(svc  / meta.svc  * 100, 100);
-  const pctFact = Math.min(fact / meta.fact * 100, 100);
+export default function MetaBanner({ periodo, svc, fact }) {
+  if (!['hoy', 'semana', 'mes'].includes(periodo)) return null;
+
+  const metaFact = getMetaBarbero(periodo);
+  const metaSvc  = Math.max(1, Math.round(metaFact / AVG_TICKET));
+
+  const pctSvc  = Math.min(svc  / metaSvc  * 100, 100);
+  const pctFact = Math.min(fact / metaFact * 100, 100);
   const pctAvg  = Math.round((pctSvc + pctFact) / 2);
 
   const animSvc  = useRef(new Animated.Value(0)).current;
@@ -31,9 +30,9 @@ export default function MetaBanner({ periodo, svc, fact }) {
   const barColor = (pct) =>
     pct >= 100 ? COLORS.ok : pct >= 60 ? COLORS.gold : 'rgba(201,168,76,.4)';
 
-  const faltaSvc  = Math.max(meta.svc - svc, 0);
-  const faltaFact = Math.max(meta.fact - fact, 0);
-  const fmtVal    = (v) => v >= 100000 ? fmtM(v) : '$' + fmt(v);
+  const faltaSvc2  = Math.max(metaSvc - svc, 0);
+  const faltaFact2 = Math.max(metaFact - fact, 0);
+  const fmtVal     = (v) => v >= 100000 ? fmtM(v) : '$' + fmt(v);
 
   return (
     <View style={s.card}>
@@ -47,7 +46,7 @@ export default function MetaBanner({ periodo, svc, fact }) {
       <View style={s.fila}>
         <View style={s.filaHead}>
           <Text style={s.filaLbl}>✂️ Servicios</Text>
-          <Text style={s.filaNum}>{svc} / {meta.svc}</Text>
+          <Text style={s.filaNum}>{svc} / {metaSvc}</Text>
         </View>
         <View style={s.barBg}>
           <Animated.View style={[s.barFill, {
@@ -55,13 +54,13 @@ export default function MetaBanner({ periodo, svc, fact }) {
             backgroundColor: barColor(pctSvc),
           }]} />
         </View>
-        {faltaSvc > 0 && <Text style={s.falta}>Faltan {faltaSvc} svc</Text>}
+        {faltaSvc2 > 0 && <Text style={s.falta}>Faltan {faltaSvc2} svc</Text>}
       </View>
 
       <View style={[s.fila, { marginBottom: 0 }]}>
         <View style={s.filaHead}>
           <Text style={s.filaLbl}>💰 Facturado</Text>
-          <Text style={s.filaNum}>{fmtVal(fact)} / {fmtVal(meta.fact)}</Text>
+          <Text style={s.filaNum}>{fmtVal(fact)} / {fmtVal(metaFact)}</Text>
         </View>
         <View style={s.barBg}>
           <Animated.View style={[s.barFill, {
@@ -69,7 +68,7 @@ export default function MetaBanner({ periodo, svc, fact }) {
             backgroundColor: barColor(pctFact),
           }]} />
         </View>
-        {faltaFact > 0 && <Text style={s.falta}>Faltan {fmtVal(faltaFact)}</Text>}
+        {faltaFact2 > 0 && <Text style={s.falta}>Faltan {fmtVal(faltaFact2)}</Text>}
       </View>
     </View>
   );

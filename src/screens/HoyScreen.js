@@ -66,13 +66,15 @@ async function cargarRegistrosPeriodo(bid, periodo) {
 }
 
 export default function HoyScreen({ barbero }) {
-  const [periodo,    setPeriodo]   = useState('hoy');
-  const [regs,       setRegs]      = useState([]);
-  const [loading,    setLoading]   = useState(true);
-  const [refreshing, setRefreshing]= useState(false);
-  const [showCal,    setShowCal]    = useState(false);
-  const [fechaDesde, setFechaDesde] = useState('');
-  const [fechaHasta, setFechaHasta] = useState('');
+  const [periodo,       setPeriodo]      = useState('hoy');
+  const [regs,          setRegs]         = useState([]);
+  const [loading,       setLoading]      = useState(true);
+  const [refreshing,    setRefreshing]   = useState(false);
+  const [showCal,       setShowCal]      = useState(false);
+  const [fechaDesde,    setFechaDesde]   = useState('');
+  const [fechaHasta,    setFechaHasta]   = useState('');
+  const [agenda,        setAgenda]       = useState([]);
+  const [agendaVisible, setAgendaVisible]= useState(false);
 
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -113,6 +115,18 @@ export default function HoyScreen({ barbero }) {
   }, [barbero, periodo, fechaDesde, fechaHasta]);
 
   useEffect(() => { cargar(); }, [periodo]);
+
+  // Cargar agenda al montar y cuando cambia el barbero
+  useEffect(() => {
+    fetch(`${API_URL}/agenda/hoy`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          setAgenda((data.agenda || []).filter(a => a.bid === barbero.bid));
+        }
+      })
+      .catch(() => {});
+  }, [barbero.bid]);
 
   // Stats calculados
   const n    = regs.length;
@@ -297,6 +311,48 @@ export default function HoyScreen({ barbero }) {
           )}
         </>
       )}
+
+      {/* ── AGENDA DEL DÍA ── */}
+      {periodo === 'hoy' && (
+        <View style={s.card}>
+          <TouchableOpacity
+            style={s.agendaHeader}
+            onPress={() => setAgendaVisible(v => !v)}
+          >
+            <Text style={s.cardTitle}>
+              📅 AGENDA DEL DÍA ({agenda.length})
+            </Text>
+            <Text style={s.agendaToggle}>{agendaVisible ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+
+          {agendaVisible && (
+            agenda.length === 0 ? (
+              <Text style={s.agendaVacia}>Sin agenda para hoy</Text>
+            ) : (
+              agenda.map(a => {
+                const estadoColor =
+                  a.estado === 'aceptado'   ? '#4db87a' :
+                  a.estado === 'completado' ? '#5580d4' : '#c9a84c';
+                return (
+                  <View key={a.id} style={s.agendaItem}>
+                    <Text style={s.agendaHora}>{a.hora}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.agendaCliente}>{a.cliente_nombre}</Text>
+                      <Text style={s.agendaSvc}>{a.svc_solicitado}</Text>
+                    </View>
+                    <View style={[s.agendaBadge,
+                      { backgroundColor: estadoColor + '22', borderColor: estadoColor + '55' }]}>
+                      <Text style={[s.agendaBadgeTxt, { color: estadoColor }]}>
+                        {a.estado}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )
+          )}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -349,4 +405,15 @@ const s = StyleSheet.create({
   empty:     { alignItems:'center', paddingVertical:50 },
   emptyIco:  { fontSize:40, marginBottom:10 },
   emptyTxt:  { fontSize:15, color:COLORS.text3 },
+
+  agendaHeader:   { flexDirection:'row', justifyContent:'space-between', alignItems:'center' },
+  agendaToggle:   { fontSize:13, color:COLORS.text3, marginBottom:14 },
+  agendaVacia:    { fontSize:13, color:COLORS.text3, marginTop:4 },
+  agendaItem:     { flexDirection:'row', alignItems:'center', paddingVertical:10,
+    borderBottomWidth:1, borderBottomColor:COLORS.border, gap:8 },
+  agendaHora:     { fontSize:12, color:COLORS.text3, width:38 },
+  agendaCliente:  { fontSize:14, color:COLORS.text, fontWeight:'600' },
+  agendaSvc:      { fontSize:12, color:COLORS.text2, marginTop:1 },
+  agendaBadge:    { paddingHorizontal:8, paddingVertical:3, borderRadius:10, borderWidth:1 },
+  agendaBadgeTxt: { fontSize:11, fontWeight:'700' },
 });

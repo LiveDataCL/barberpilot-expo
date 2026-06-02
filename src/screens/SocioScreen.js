@@ -116,8 +116,10 @@ export default function SocioScreen() {
           porHora[h].svc++;
           porHora[h].fact += r.precio || 0;
         }
-        if (r.fecha) {
-          const dow = new Date(r.fecha + 'T12:00:00').getDay();
+        // r.fecha no viene en GET /registros/dia; usar fecha_display (DD/MM/YYYY)
+        if (r.fecha_display) {
+          const [dd, mm, yyyy] = r.fecha_display.split('/');
+          const dow = new Date(`${yyyy}-${mm}-${dd}T12:00:00`).getDay();
           const di  = dow === 0 ? 6 : dow - 1;
           porDia[di].svc++;
           porDia[di].fact += r.precio || 0;
