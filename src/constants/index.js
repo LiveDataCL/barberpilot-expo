@@ -56,6 +56,7 @@ export const SERVICIOS = [
   { id: 's09', nom: 'Matizado ganas de cabello',            precio:  8000 },
   { id: 's10', nom: 'Matizado ganas de barba',              precio:  5000 },
   { id: 's11', nom: 'Corte Express + Perfilado de barba',   precio: 15000 },
+  { id: 'custom', nom: 'Especial…',                         precio:  0    },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────
