@@ -38,12 +38,12 @@ export function getMetaBarbero(periodo) {
     (metaMes / diasHabiles) / NUM_BARBEROS;
 
   if (periodo === 'hoy')
-    return Math.round(metaDiariaBarbero);
+    return Math.round(metaDiariaBarbero * 0.50);
   if (periodo === 'semana')
-    return Math.round(metaDiariaBarbero * 6);
+    return Math.round(metaDiariaBarbero * 6 * 0.50);
   if (periodo === 'mes')
-    return Math.round(metaMes / NUM_BARBEROS);
-  return Math.round(metaDiariaBarbero);
+    return Math.round((metaMes / NUM_BARBEROS) * 0.50);
+  return Math.round(metaDiariaBarbero * 0.50);
 }
 
 export function getMetaNegocio(periodo) {

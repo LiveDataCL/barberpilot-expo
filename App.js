@@ -151,8 +151,12 @@ export default function App() {
   }, [usuario]);
 
   const logout = () => {
-    setUsuario(null); setTab('hoy');
-    setAvatarImage(null); setAvatarEmoji(null);
+    console.log('[LOGOUT] logout() called — clearing usuario');
+    setTab('hoy');
+    setAvatarImage(null);
+    setAvatarEmoji(null);
+    setUsuario(null);
+    console.log('[LOGOUT] setUsuario(null) called');
   };
 
   if (!usuario) {

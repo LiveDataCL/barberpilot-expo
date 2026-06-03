@@ -308,7 +308,10 @@ export default function ConfigScreen({ barbero, onLogout }) {
         '¿Seguro que quieres salir?',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Salir', style: 'destructive', onPress: () => onLogout() },
+          { text: 'Salir', style: 'destructive', onPress: () => {
+            console.log('[LOGOUT] button pressed — calling onLogout');
+            onLogout();
+          }},
         ]
       )}>
         <Text style={s.logoutTxt}>🚪 Cerrar sesión</Text>

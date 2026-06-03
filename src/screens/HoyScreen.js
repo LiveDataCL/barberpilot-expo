@@ -275,7 +275,7 @@ export default function HoyScreen({ barbero }) {
         <>
           {/* Banner de meta */}
           {['hoy', 'semana', 'mes'].includes(periodo) && (
-            <MetaBanner periodo={periodo} svc={n} fact={fact} avgTicket={avgTicket} />
+            <MetaBanner periodo={periodo} svc={n} bb={bb} avgTicket={avgTicket} />
           )}
 
           {/* Hero */}

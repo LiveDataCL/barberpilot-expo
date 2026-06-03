@@ -7,14 +7,14 @@ const ETIQUETA = { hoy: 'DÍA', semana: 'SEMANA', mes: 'MES' };
 
 const DEFAULT_TICKET = 12000;
 
-export default function MetaBanner({ periodo, svc, fact, avgTicket }) {
+export default function MetaBanner({ periodo, svc, bb, avgTicket }) {
   if (!['hoy', 'semana', 'mes'].includes(periodo)) return null;
 
   const metaFact = getMetaBarbero(periodo);
   const metaSvc  = Math.max(1, Math.round(metaFact / (avgTicket || DEFAULT_TICKET)));
 
   const pctSvc  = Math.min(svc  / metaSvc  * 100, 100);
-  const pctFact = Math.min(fact / metaFact * 100, 100);
+  const pctFact = Math.min(bb / metaFact * 100, 100);
   const pctAvg  = Math.round((pctSvc + pctFact) / 2);
 
   const animSvc  = useRef(new Animated.Value(0)).current;
@@ -25,13 +25,13 @@ export default function MetaBanner({ periodo, svc, fact, avgTicket }) {
       Animated.timing(animSvc,  { toValue: pctSvc,  duration: 700, useNativeDriver: false }),
       Animated.timing(animFact, { toValue: pctFact, duration: 700, useNativeDriver: false }),
     ]).start();
-  }, [svc, fact, periodo]);
+  }, [svc, bb, periodo]);
 
   const barColor = (pct) =>
     pct >= 100 ? COLORS.ok : pct >= 60 ? COLORS.gold : 'rgba(201,168,76,.4)';
 
   const faltaSvc2  = Math.max(metaSvc - svc, 0);
-  const faltaFact2 = Math.max(metaFact - fact, 0);
+  const faltaFact2 = Math.max(metaFact - bb, 0);
   const fmtVal     = (v) => v >= 100000 ? fmtM(v) : '$' + fmt(v);
 
   return (
@@ -59,8 +59,8 @@ export default function MetaBanner({ periodo, svc, fact, avgTicket }) {
 
       <View style={[s.fila, { marginBottom: 0 }]}>
         <View style={s.filaHead}>
-          <Text style={s.filaLbl}>💰 Facturado</Text>
-          <Text style={s.filaNum}>{fmtVal(fact)} / {fmtVal(metaFact)}</Text>
+          <Text style={s.filaLbl}>💰 Mis ingresos</Text>
+          <Text style={s.filaNum}>{fmtVal(bb)} / {fmtVal(metaFact)}</Text>
         </View>
         <View style={s.barBg}>
           <Animated.View style={[s.barFill, {
