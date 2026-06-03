@@ -5,13 +5,13 @@ import { getMetaBarbero } from '../services/metas';
 
 const ETIQUETA = { hoy: 'DÍA', semana: 'SEMANA', mes: 'MES' };
 
-const AVG_TICKET = 12000; // ticket promedio para derivar meta de servicios
+const DEFAULT_TICKET = 12000;
 
-export default function MetaBanner({ periodo, svc, fact }) {
+export default function MetaBanner({ periodo, svc, fact, avgTicket }) {
   if (!['hoy', 'semana', 'mes'].includes(periodo)) return null;
 
   const metaFact = getMetaBarbero(periodo);
-  const metaSvc  = Math.max(1, Math.round(metaFact / AVG_TICKET));
+  const metaSvc  = Math.max(1, Math.round(metaFact / (avgTicket || DEFAULT_TICKET)));
 
   const pctSvc  = Math.min(svc  / metaSvc  * 100, 100);
   const pctFact = Math.min(fact / metaFact * 100, 100);

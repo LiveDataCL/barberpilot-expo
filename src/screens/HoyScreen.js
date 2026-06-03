@@ -8,6 +8,29 @@ import CalendarioModal from './CalendarioModal';
 import MetaBanner from './MetaBanner';
 import { updateDayNotification } from '../services/DayNotification';
 
+const KPI_LABELS = {
+  apertura:   'Apertura',
+  estacion:   'Estación de trabajo',
+  aseo_entre: 'Aseo entre servicios',
+  aseo_comun: 'Aseo áreas comunes',
+  visajismo:  'Visajismo',
+  upselling:  'Upselling',
+  atencion:   'Atención al cliente',
+  relacion:   'Relación con el cliente',
+  uniforme:   'Uniforme',
+  cierre:     'Cierre de servicio',
+};
+
+const KPI_MAX = 30; // 10 métricas × max 3 pts
+
+function calcBonus(disq, pct) {
+  if (disq) return 0;
+  if (pct >= 90) return 150000;
+  if (pct >= 75) return 100000;
+  if (pct >= 60) return 50000;
+  return 0;
+}
+
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
 const PERIODOS = [
@@ -75,6 +98,8 @@ export default function HoyScreen({ barbero }) {
   const [fechaHasta,    setFechaHasta]   = useState('');
   const [agenda,        setAgenda]       = useState([]);
   const [agendaVisible, setAgendaVisible]= useState(false);
+  const [kpi,           setKpi]          = useState(null);
+  const [kpiVisible,    setKpiVisible]   = useState(false);
 
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -128,12 +153,38 @@ export default function HoyScreen({ barbero }) {
       .catch(() => {});
   }, [barbero.bid]);
 
+  // Cargar KPI del mes actual
+  useEffect(() => {
+    fetch(`${API_URL}/kpi/${mesPeriodo()}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) return;
+        const rows = (data.evaluaciones || []).filter(e => e.bid === barbero.bid);
+        if (!rows.length) return;
+        const disqRow   = rows.find(e => e.metrica === '_disq');
+        const metricas  = rows.filter(e => e.metrica !== '_disq');
+        const rawScore  = metricas.reduce((a, e) => a + parseFloat(e.valor || 0), 0);
+        const pct       = Math.min(100, Math.round(rawScore / KPI_MAX * 100));
+        const disq      = disqRow?.disq || false;
+        setKpi({
+          metricas,
+          disq,
+          disqMotivo: disqRow?.disq_motivo || '',
+          rawScore,
+          pct,
+          bonus: calcBonus(disq, pct),
+        });
+      })
+      .catch(() => {});
+  }, [barbero.bid]);
+
   // Stats calculados
-  const n    = regs.length;
-  const fact = regs.reduce((a,r) => a+(r.precio||0), 0);
-  const bb   = regs.reduce((a,r) => a+(r.bb||0)+(r.propina||0), 0);
-  const prop = regs.reduce((a,r) => a+(r.propina||0), 0);
-  const tk   = n>0 ? Math.round(fact/n) : 0;
+  const n         = regs.length;
+  const fact      = regs.reduce((a,r) => a+(r.precio||0), 0);
+  const bb        = regs.reduce((a,r) => a+(r.bb||0)+(r.propina||0), 0);
+  const prop      = regs.reduce((a,r) => a+(r.propina||0), 0);
+  const tk        = n>0 ? Math.round(fact/n) : 0;
+  const avgTicket = n>0 ? tk : 13000; // ticket promedio real o default
 
   // Desglose por pago
   const porPago = {};
@@ -184,7 +235,7 @@ export default function HoyScreen({ barbero }) {
         <>
           {/* Banner de meta */}
           {['hoy', 'semana', 'mes'].includes(periodo) && (
-            <MetaBanner periodo={periodo} svc={n} fact={fact} />
+            <MetaBanner periodo={periodo} svc={n} fact={fact} avgTicket={avgTicket} />
           )}
 
           {/* Hero */}
@@ -204,16 +255,14 @@ export default function HoyScreen({ barbero }) {
               <Text style={[s.statVal,{color:COLORS.ok}]}>
                 {bb>=100000?fmtM(bb):'$'+fmt(bb)}
               </Text>
-              <Text style={s.statLbl}>Mis ingresos</Text>
-            </View>
-            <View style={[s.statCard, s.statGold]}>
-              <Text style={[s.statVal,{color:COLORS.gold}]}>
-                {fact>=100000?fmtM(fact):'$'+fmt(fact)}
-              </Text>
-              <Text style={s.statLbl}>Facturado</Text>
+              <Text style={s.statLbl}>Tus ingresos</Text>
             </View>
             <View style={s.statCard}>
-              <Text style={s.statVal}>${fmt(tk)}</Text>
+              <Text style={s.statVal}>{n}</Text>
+              <Text style={s.statLbl}>Servicios</Text>
+            </View>
+            <View style={[s.statCard, s.statGold]}>
+              <Text style={[s.statVal,{color:COLORS.gold}]}>${fmt(tk)}</Text>
               <Text style={s.statLbl}>Ticket prom.</Text>
             </View>
             <View style={s.statCard}>
@@ -312,6 +361,63 @@ export default function HoyScreen({ barbero }) {
         </>
       )}
 
+      {/* ── MI PUNTUACIÓN KPI ── */}
+      {periodo === 'hoy' && (
+        <View style={s.card}>
+          <TouchableOpacity
+            style={s.agendaHeader}
+            onPress={() => setKpiVisible(v => !v)}
+          >
+            <Text style={s.cardTitle}>MI PUNTUACIÓN · MES ACTUAL</Text>
+            <Text style={s.agendaToggle}>{kpiVisible ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+
+          {kpiVisible && (
+            kpi === null ? (
+              <Text style={s.agendaVacia}>Sin evaluación este mes</Text>
+            ) : (
+              <>
+                {kpi.disq && (
+                  <View style={s.kpiDisqBanner}>
+                    <Text style={s.kpiDisqTxt}>
+                      ⚠ Descalificado: {kpi.disqMotivo || 'Ver con la dirección'}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={s.kpiScoreRow}>
+                  <View style={s.kpiScoreBox}>
+                    <Text style={[s.kpiScore, { color: barbero.color }]}>
+                      {kpi.pct}
+                    </Text>
+                    <Text style={s.kpiScoreSub}>/ 100 pts</Text>
+                  </View>
+                  <View style={s.kpiBonusBox}>
+                    <Text style={s.kpiBonusLbl}>BONO MES</Text>
+                    <Text style={[s.kpiBonusVal,
+                      { color: kpi.bonus > 0 && !kpi.disq ? COLORS.ok : COLORS.text3 }
+                    ]}>
+                      {kpi.bonus > 0 && !kpi.disq ? `$${fmt(kpi.bonus)}` : '$0'}
+                    </Text>
+                  </View>
+                </View>
+
+                {kpi.metricas.map(m => (
+                  <View key={m.metrica} style={s.kpiMetricRow}>
+                    <Text style={s.kpiMetricNom} numberOfLines={1}>
+                      {KPI_LABELS[m.metrica] || m.metrica}
+                    </Text>
+                    <Text style={s.kpiMetricVal}>
+                      {parseFloat(m.valor).toFixed(1)}
+                    </Text>
+                  </View>
+                ))}
+              </>
+            )
+          )}
+        </View>
+      )}
+
       {/* ── AGENDA DEL DÍA ── */}
       {periodo === 'hoy' && (
         <View style={s.card}>
@@ -405,6 +511,26 @@ const s = StyleSheet.create({
   empty:     { alignItems:'center', paddingVertical:50 },
   emptyIco:  { fontSize:40, marginBottom:10 },
   emptyTxt:  { fontSize:15, color:COLORS.text3 },
+
+  // KPI
+  kpiDisqBanner: { backgroundColor:'rgba(224,85,85,.12)', borderRadius:10, borderWidth:1,
+    borderColor:'rgba(224,85,85,.3)', padding:12, marginBottom:14 },
+  kpiDisqTxt:    { fontSize:13, color:COLORS.red, fontWeight:'600' },
+  kpiScoreRow:   { flexDirection:'row', alignItems:'center', gap:16, marginBottom:16 },
+  kpiScoreBox:   { flex:1, alignItems:'center', backgroundColor:COLORS.s2, borderRadius:14,
+    borderWidth:1, borderColor:COLORS.border, padding:16 },
+  kpiScore:      { fontSize:48, fontWeight:'200', lineHeight:56 },
+  kpiScoreSub:   { fontSize:11, color:COLORS.text3, letterSpacing:1, marginTop:2 },
+  kpiBonusBox:   { flex:1, alignItems:'center', backgroundColor:COLORS.s2, borderRadius:14,
+    borderWidth:1, borderColor:COLORS.border, padding:16 },
+  kpiBonusLbl:   { fontSize:10, color:COLORS.text3, letterSpacing:2, textTransform:'uppercase',
+    marginBottom:6 },
+  kpiBonusVal:   { fontSize:22, fontWeight:'600' },
+  kpiMetricRow:  { flexDirection:'row', justifyContent:'space-between', alignItems:'center',
+    paddingVertical:9, borderBottomWidth:1, borderBottomColor:COLORS.border },
+  kpiMetricNom:  { fontSize:13, color:COLORS.text2, flex:1 },
+  kpiMetricVal:  { fontSize:14, color:COLORS.text, fontWeight:'600', minWidth:36,
+    textAlign:'right' },
 
   agendaHeader:   { flexDirection:'row', justifyContent:'space-between', alignItems:'center' },
   agendaToggle:   { fontSize:13, color:COLORS.text3, marginBottom:14 },

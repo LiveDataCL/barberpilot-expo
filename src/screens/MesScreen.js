@@ -4,8 +4,7 @@ import {
 } from 'react-native';
 import { COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import { api } from '../services/api';
-
-const META = 1_200_000;
+import { getMetaBarbero } from '../services/metas';
 
 export default function MesScreen({ barbero }) {
   const [data, setData]       = useState(null);
@@ -35,8 +34,11 @@ export default function MesScreen({ barbero }) {
   const ups  = data?.upselling   || 0;
   const regs = data?.registros   || [];
 
-  const pct  = Math.min(100, Math.round(bb / META * 100));
-  const falta = Math.max(0, META - bb);
+  const META     = getMetaBarbero('mes');
+  const avgTk    = tk || 13000;
+  const metaSvc  = Math.max(1, Math.round(META / avgTk));
+  const pct      = Math.min(100, Math.round(bb / META * 100));
+  const falta    = Math.max(0, META - bb);
 
   // Servicios por tipo
   const svcMap = {};
@@ -81,9 +83,11 @@ export default function MesScreen({ barbero }) {
         <Text style={s.cardTitle}>PROGRESO HACIA LA META</Text>
         <View style={s.metaRow}>
           <Text style={[s.metaVal, { color: COLORS.ok }]}>{fmtM(bb)}</Text>
-          <Text style={s.metaTotal}>Meta: $1.200.000</Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={s.metaTotal}>Meta: {fmtM(META)}</Text>
+            <Text style={[s.metaTotal, { marginTop: 2 }]}>{n} / {metaSvc} servicios</Text>
+          </View>
         </View>
-        {/* Barra */}
         <View style={s.barBg}>
           <View style={[s.barFill, {
             width: `${pct}%`,

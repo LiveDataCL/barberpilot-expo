@@ -58,7 +58,7 @@ export default function LiquidacionScreen({ barbero }) {
       <View style={s.heroCard}>
         <Text style={s.heroLbl}>TOTAL A COBRAR HOY</Text>
         <Text style={s.heroVal}>${fmt(bb)}</Text>
-        <Text style={s.heroSub}>{n} servicios · ${fmt(fact)} facturado</Text>
+        <Text style={s.heroSub}>{n} servicios del día</Text>
       </View>
 
       {/* Desglose por forma de pago */}

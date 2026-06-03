@@ -56,12 +56,13 @@ export default function TendenciasScreen({ barbero }) {
         regs.forEach(reg => {
           totalRegs++;
           const hora = parseInt((reg.hora||'00:00').slice(0,2));
+          const ingreso = (reg.bb || 0) + (reg.propina || 0);
           if (porHora[hora]) {
             porHora[hora].svc++;
-            porHora[hora].fact += reg.precio || 0;
+            porHora[hora].fact += ingreso;
           }
           porDia[dowIdx].svc++;
-          porDia[dowIdx].fact += reg.precio || 0;
+          porDia[dowIdx].fact += ingreso;
         });
       });
 
@@ -111,7 +112,7 @@ export default function TendenciasScreen({ barbero }) {
 
       {/* ── GRÁFICO POR HORA ───────────────────────────────── */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>⏰ FACTURACIÓN POR HORA</Text>
+        <Text style={s.cardTitle}>⏰ INGRESOS POR HORA</Text>
         <Text style={s.cardSub}>Identifica tus horas punta y valle</Text>
 
         <View style={s.chartWrap}>
