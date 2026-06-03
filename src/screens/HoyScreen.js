@@ -21,7 +21,7 @@ const KPI_LABELS = {
   cierre:     'Cierre de servicio',
 };
 
-const KPI_MAX = 30; // 10 métricas × max 3 pts
+const KPI_MAX = 35; // 10 métricas × max 3.5 pts
 
 function calcBonus(disq, pct) {
   if (disq) return 0;
@@ -100,6 +100,7 @@ export default function HoyScreen({ barbero }) {
   const [agendaVisible, setAgendaVisible]= useState(false);
   const [kpi,           setKpi]          = useState(null);
   const [kpiVisible,    setKpiVisible]   = useState(false);
+  const [avgTicket,     setAvgTicket]    = useState(13000);
 
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -178,13 +179,52 @@ export default function HoyScreen({ barbero }) {
       .catch(() => {});
   }, [barbero.bid]);
 
+  // avgTicket: ticket promedio real de los últimos 30 días (independiente del período)
+  useEffect(() => {
+    const fetchAvgTicket = async () => {
+      try {
+        const desde = new Date();
+        desde.setDate(desde.getDate() - 30);
+        const desdeStr = desde.toISOString().slice(0, 10);
+        const hastaStr = new Date().toISOString().slice(0, 10);
+        const days = [];
+        let cur = new Date(desdeStr + 'T12:00:00');
+        const fin = new Date(hastaStr + 'T12:00:00');
+        while (cur <= fin) {
+          days.push(cur.toISOString().slice(0, 10));
+          cur.setDate(cur.getDate() + 1);
+        }
+        const results = await Promise.all(
+          days.map(f =>
+            fetch(`${API_URL}/registros/dia?fecha=${f}`)
+              .then(r => r.json())
+              .catch(() => ({ ok: false, registros: [] }))
+          )
+        );
+        let allRegs = [];
+        results.forEach(r => {
+          if (r.ok && r.registros)
+            allRegs = allRegs.concat(r.registros.filter(x => x.bid === barbero.bid));
+        });
+        if (allRegs.length > 0) {
+          const avg = Math.round(
+            allRegs.reduce((a, r) => a + (r.precio || 0), 0) / allRegs.length
+          );
+          setAvgTicket(avg);
+        }
+      } catch(e) {
+        console.log('avgTicket fetch error:', e.message);
+      }
+    };
+    fetchAvgTicket();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Stats calculados
-  const n         = regs.length;
-  const fact      = regs.reduce((a,r) => a+(r.precio||0), 0);
-  const bb        = regs.reduce((a,r) => a+(r.bb||0)+(r.propina||0), 0);
-  const prop      = regs.reduce((a,r) => a+(r.propina||0), 0);
-  const tk        = n>0 ? Math.round(fact/n) : 0;
-  const avgTicket = n>0 ? tk : 13000; // ticket promedio real o default
+  const n    = regs.length;
+  const fact = regs.reduce((a,r) => a+(r.precio||0), 0);
+  const bb   = regs.reduce((a,r) => a+(r.bb||0)+(r.propina||0), 0);
+  const prop = regs.reduce((a,r) => a+(r.propina||0), 0);
+  const tk   = n>0 ? Math.round(fact/n) : 0;
 
   // Desglose por pago
   const porPago = {};
