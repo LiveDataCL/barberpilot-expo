@@ -7,6 +7,7 @@ import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import MetaBanner from './MetaBanner';
 import { updateDayNotification } from '../services/DayNotification';
+import { api } from '../services/api';
 
 const KPI_LABELS = {
   apertura:   'Apertura',
@@ -117,8 +118,8 @@ export default function HoyScreen({ barbero }) {
       }
       const results = await Promise.all(
         dias.map(f =>
-          fetch(`${API_URL}/registros/dia?fecha=${f}`)
-            .then(r => r.json()).catch(() => ({ ok: false, registros: [] }))
+          api.get(`/registros/dia?fecha=${f}`)
+            .catch(() => ({ ok: false, registros: [] }))
         )
       );
       let regsNew = [];
@@ -144,8 +145,7 @@ export default function HoyScreen({ barbero }) {
 
   // Cargar agenda al montar y cuando cambia el barbero
   useEffect(() => {
-    fetch(`${API_URL}/agenda/hoy`)
-      .then(r => r.json())
+    api.get('/agenda/hoy')
       .then(data => {
         if (data.ok) {
           setAgenda((data.agenda || []).filter(a => a.bid === barbero.bid));
@@ -156,8 +156,7 @@ export default function HoyScreen({ barbero }) {
 
   // Cargar KPI del mes actual
   useEffect(() => {
-    fetch(`${API_URL}/kpi/${mesPeriodo()}`)
-      .then(r => r.json())
+    api.get(`/kpi/${mesPeriodo()}`)
       .then(data => {
         if (!data.ok) return;
         const rows = (data.evaluaciones || []).filter(e => e.bid === barbero.bid);
@@ -196,8 +195,7 @@ export default function HoyScreen({ barbero }) {
         }
         const results = await Promise.all(
           days.map(f =>
-            fetch(`${API_URL}/registros/dia?fecha=${f}`)
-              .then(r => r.json())
+            api.get(`/registros/dia?fecha=${f}`)
               .catch(() => ({ ok: false, registros: [] }))
           )
         );
