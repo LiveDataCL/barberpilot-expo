@@ -108,7 +108,6 @@ export default function HoyScreen({ barbero }) {
     try {
       const desde = getFechaDesde(periodo, fechaDesde);
       const hasta = periodo === 'custom' && fechaHasta ? fechaHasta : hoy();
-      // Cargar días entre desde y hasta
       const dias = [];
       let cur = new Date(desde + 'T12:00:00');
       const fin = new Date(hasta + 'T12:00:00');
@@ -116,27 +115,36 @@ export default function HoyScreen({ barbero }) {
         dias.push(cur.toISOString().slice(0, 10));
         cur.setDate(cur.getDate() + 1);
       }
+      console.log('[HOY] cargar — periodo:', periodo, 'dias:', dias, 'barbero.bid:', barbero?.bid);
       const results = await Promise.all(
         dias.map(f =>
           api.get(`/registros/dia?fecha=${f}`)
-            .catch(() => ({ ok: false, registros: [] }))
+            .catch((e) => {
+              console.warn('[HOY] api.get failed for', f, e?.message);
+              return { ok: false, registros: [] };
+            })
         )
       );
       let regsNew = [];
-      results.forEach(r => {
+      results.forEach((r, i) => {
+        console.log('[HOY] result[' + i + '] ok:', r.ok, 'registros:', r.registros?.length, 'raw keys:', Object.keys(r));
         if (r.ok && r.registros) {
-          regsNew = regsNew.concat(r.registros.filter(x => x.bid === barbero.bid));
+          const filtered = r.registros.filter(x => x.bid === barbero.bid);
+          console.log('[HOY] bid filter', barbero.bid, '→', r.registros.length, 'total →', filtered.length, 'kept');
+          regsNew = regsNew.concat(filtered);
         }
       });
+      console.log('[HOY] setRegs called with', regsNew.length, 'items');
       setRegs(regsNew);
-      // Actualizar notificación persistente solo en vista de hoy
       if (periodo === 'hoy') {
         const _n    = regsNew.length;
         const _fact = regsNew.reduce((a, r) => a + (r.precio || 0), 0);
         const _bb   = regsNew.reduce((a, r) => a + (r.bb || 0) + (r.propina || 0), 0);
         updateDayNotification(barbero, _n, _fact, _bb);
       }
-    } catch {}
+    } catch (e) {
+      console.error('[HOY] cargar threw:', e?.message, e);
+    }
     setLoading(false);
     setRefreshing(false);
   }, [barbero, periodo, fechaDesde, fechaHasta]);
