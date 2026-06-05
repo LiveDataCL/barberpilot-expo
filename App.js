@@ -152,11 +152,11 @@ export default function App() {
 
   const logout = () => {
     console.log('[LOGOUT] logout() called — clearing usuario');
+    setUsuario(null);   // first: triggers LoginScreen immediately, no HoyScreen flash
     setTab('hoy');
     setAvatarImage(null);
     setAvatarEmoji(null);
-    setUsuario(null);
-    console.log('[LOGOUT] setUsuario(null) called');
+    console.log('[LOGOUT] all state cleared');
   };
 
   if (!usuario) {
