@@ -77,7 +77,8 @@
           "defaultChannel": "default",
           "sounds": []
         }
-      ]
+      ],
+      "expo-font"
     ],
     "updates": {
       "enabled": true,
