@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal, View, Text, StyleSheet, TouchableOpacity,
   TextInput, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
@@ -20,6 +20,10 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
 
+  // Stable registro ID for this sheet session — same ID on every retry so the
+  // server's duplicate guard (POST /registros 409) blocks a second insert.
+  const regIdRef = useRef(null);
+
   // Reset every time the sheet opens
   useEffect(() => {
     if (visible) {
@@ -28,6 +32,7 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
       setManualPrecio('');
       setLoading(false);
       setError('');
+      regIdRef.current = 'TK' + Date.now();
     }
   }, [visible]);
 
@@ -55,7 +60,7 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
 
     const now = new Date();
     const reg = {
-      id:      'TK' + Date.now(),
+      id:      regIdRef.current,
       bid:     barbero.bid,
       bnom:    barbero.nombre,
       sid:     'queue',
