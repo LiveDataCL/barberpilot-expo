@@ -155,9 +155,14 @@ export default function HoyScreen({ barbero }) {
   useEffect(() => {
     let alive = true;
     const load = () => {
-      api.agenda(barbero.bid, hoy())
-        .then(data => { if (alive && data.ok) setAgenda(data.appointments || []); })
-        .catch(() => {});
+      const fecha = hoy();
+      console.log('[Agenda] fetching bid:', barbero.bid, 'fecha:', fecha);
+      api.agenda(barbero.bid, fecha)
+        .then(data => {
+          console.log('[Agenda] response ok:', data.ok, 'count:', data.appointments?.length, JSON.stringify(data.appointments?.slice(0,2)));
+          if (alive && data.ok) setAgenda(data.appointments || []);
+        })
+        .catch(e => console.error('[Agenda] fetch error:', e.message));
     };
     load();
     const t = setInterval(load, 30000);
