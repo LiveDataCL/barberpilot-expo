@@ -74,7 +74,7 @@ export default function ColaScreen({ barbero }) {
         api.agenda(barbero.bid, hoy()).catch(() => ({ ok: false })),
         api.hoy(barbero.bid).catch(() => ({ ok: false })),
       ]);
-      if (qData?.ok)  setQueue(aData.ok ? qData.queue || [] : qData.queue || []);
+      if (qData?.ok)  setQueue(qData.queue || []);
       if (aData?.ok)  setAgenda(
         (aData.appointments || []).filter(a => a.estado !== 'cancelado')
       );
