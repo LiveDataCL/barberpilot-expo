@@ -151,16 +151,23 @@ export default function HoyScreen({ barbero }) {
 
   useEffect(() => { cargar(); }, [periodo]);
 
-  // Cargar agenda al montar y cuando cambia el barbero
+  // Cargar agenda al montar y refrescar cada 30 s
   useEffect(() => {
-    api.get('/agenda/hoy')
-      .then(data => {
-        if (data.ok) {
-          setAgenda((data.agenda || []).filter(a => a.bid === barbero.bid));
-        }
-      })
-      .catch(() => {});
+    let alive = true;
+    const load = () => {
+      api.agenda(barbero.bid, hoy())
+        .then(data => { if (alive && data.ok) setAgenda(data.appointments || []); })
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(t); };
   }, [barbero.bid]);
+
+  // Auto-expandir agenda cuando hay citas
+  useEffect(() => {
+    if (agenda.length > 0) setAgendaVisible(true);
+  }, [agenda.length]);
 
   // Cargar KPI del mes actual
   useEffect(() => {
@@ -483,14 +490,15 @@ export default function HoyScreen({ barbero }) {
             ) : (
               agenda.map(a => {
                 const estadoColor =
-                  a.estado === 'aceptado'   ? '#4db87a' :
+                  a.estado === 'confirmado' ? '#4db87a' :
+                  a.estado === 'cancelado'  ? '#e05555' :
                   a.estado === 'completado' ? '#5580d4' : '#c9a84c';
                 return (
                   <View key={a.id} style={s.agendaItem}>
-                    <Text style={s.agendaHora}>{a.hora}</Text>
+                    <Text style={s.agendaHora}>{a.hora_inicio?.slice(0, 5)}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.agendaCliente}>{a.cliente_nombre}</Text>
-                      <Text style={s.agendaSvc}>{a.svc_solicitado}</Text>
+                      <Text style={s.agendaCliente}>{a.client_name}</Text>
+                      <Text style={s.agendaSvc}>{a.svc_nom}</Text>
                     </View>
                     <View style={[s.agendaBadge,
                       { backgroundColor: estadoColor + '22', borderColor: estadoColor + '55' }]}>

@@ -59,4 +59,6 @@ export const api = {
   queueStats:   ()               => apiFetch('/queue/stats'),
   updateStatus: (id, status)     => apiFetch(`/queue/${id}/status`, { method: 'PUT',  body: JSON.stringify({ status }) }),
   notify:       (id, type)       => apiFetch(`/queue/${id}/notify`, { method: 'POST', body: JSON.stringify({ type }) }),
+
+  agenda: (bid, fecha) => apiFetch(`/appointments?bid=${bid}&fecha=${fecha}`),
 };

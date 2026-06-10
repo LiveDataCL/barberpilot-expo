@@ -123,6 +123,15 @@ export default function App() {
   const [avatarEmoji, setAvatarEmoji] = useState(null);
   const [avatarImage, setAvatarImage] = useState(null);
 
+  // Navegar a Agenda cuando el barbero toca la notificación de nueva cita
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      if (data?.screen === 'Agenda') setTab('hoy');
+    });
+    return () => sub.remove();
+  }, []);
+
   // Registrar push token + cargar avatar cuando un barbero/admin hace login
   useEffect(() => {
     if (!usuario?.bid) return;
