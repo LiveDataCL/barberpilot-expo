@@ -3,12 +3,11 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   Vibration, Animated, Dimensions, Alert, Image, ScrollView,
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { COLORS, TODOS_PERFILES, ADMIN } from '../constants';
+import { COLORS, TODOS_PERFILES, ADMIN, API_URL, BARBEROS } from '../constants';
 
 const { width, height } = Dimensions.get('window');
 
@@ -64,15 +63,22 @@ export default function LoginScreen({ onLogin }) {
       ).start();
     });
 
-    // Cargar fotos guardadas de cada barbero
+    // Cargar fotos y emojis de cada barbero
     (async () => {
-      const dir = FileSystem.documentDirectory + 'avatars/';
       const imgs = {};
-      const { BARBEROS } = await import('../constants');
       await Promise.all(BARBEROS.map(async (b) => {
-        const path = dir + `avatar_${b.bid}.jpg`;
-        const info = await FileSystem.getInfoAsync(path).catch(() => ({ exists: false }));
-        if (info.exists) imgs[b.bid] = path;
+        try {
+          const r    = await fetch(`${API_URL}/barbero/${b.bid}/avatar`);
+          const json = await r.json();
+          if (json.ok && json.imagen) {
+            imgs[b.bid] = 'data:' + (json.mime_type || 'image/jpeg') + ';base64,' + json.imagen;
+            return;
+          }
+        } catch {}
+        try {
+          const em = await SecureStore.getItemAsync(`bp_avatar_${b.bid}`);
+          if (em) imgs[b.bid] = em;
+        } catch {}
       }));
       setAvatarImages(imgs);
     })();
@@ -188,11 +194,11 @@ export default function LoginScreen({ onLogin }) {
                 <TouchableOpacity key={p.bid} style={s.perfilBtn}
                   onPress={() => seleccionarPerfil(p)} activeOpacity={0.7}>
                   <View style={[s.avatar, { backgroundColor: p.bg }]}>
-                    {avatarImages[p.bid]
+                    {avatarImages[p.bid]?.startsWith('data:')
                       ? <Image source={{ uri: avatarImages[p.bid] }} style={s.avatarImg} />
                       : <Text style={[s.avatarLetra, { color: p.color,
-                          fontSize: p.letra.length > 1 ? 20 : 22 }]}>
-                          {p.letra}
+                          fontSize: (avatarImages[p.bid] || p.letra).length > 2 ? 18 : 22 }]}>
+                          {avatarImages[p.bid] || p.letra}
                         </Text>
                     }
                   </View>
@@ -225,10 +231,14 @@ export default function LoginScreen({ onLogin }) {
       </TouchableOpacity>
 
       <View style={s.pinHeader}>
-        <View style={[s.avatar, { backgroundColor: perfil.bg, width: 72, height: 72, borderRadius: 36 }]}>
-          <Text style={[s.avatarLetra, { color: perfil.color, fontSize: perfil.letra.length > 1 ? 26 : 30 }]}>
-            {perfil.letra}
-          </Text>
+        <View style={[s.avatar, { backgroundColor: perfil.bg, width: 72, height: 72, borderRadius: 36, overflow: 'hidden' }]}>
+          {avatarImages[perfil.bid]?.startsWith('data:')
+            ? <Image source={{ uri: avatarImages[perfil.bid] }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+            : <Text style={[s.avatarLetra, { color: perfil.color,
+                fontSize: (avatarImages[perfil.bid] || perfil.letra).length > 2 ? 24 : 30 }]}>
+                {avatarImages[perfil.bid] || perfil.letra}
+              </Text>
+          }
         </View>
         <Text style={s.pinNombre}>{perfil.nombre}</Text>
         <Text style={s.pinSub}>
