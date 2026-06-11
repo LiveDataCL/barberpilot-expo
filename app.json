@@ -7,8 +7,8 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#080706",
     "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
       "backgroundColor": "#080706"
     },
     "assetBundlePatterns": [
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#080706"
       },
       "package": "com.saulfino.barberpilot",
@@ -72,7 +72,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/adaptive-icon.png",
           "color": "#c9a84c",
           "defaultChannel": "default",
           "sounds": []
