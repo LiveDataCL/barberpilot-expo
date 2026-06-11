@@ -35,7 +35,7 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
       setManualPrecio('');
       setLoading(false);
       setError('');
-      regIdRef.current = 'TK' + entry.id.replace(/-/g, '');
+      regIdRef.current = 'TK' + String(entry.id).replace(/-/g, '');
     }
   }, [visible, entry?.id]);
 
@@ -202,9 +202,9 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
 
               {/* CTA */}
               <TouchableOpacity
-                style={[s.ctaBtn, loading && s.ctaBtnDisabled]}
+                style={[s.ctaBtn, (loading || (hasManual && servicePrecio === 0)) && s.ctaBtnDisabled]}
                 onPress={handleCerrar}
-                disabled={loading}
+                disabled={loading || (hasManual && servicePrecio === 0)}
                 activeOpacity={0.85}
               >
                 {loading
