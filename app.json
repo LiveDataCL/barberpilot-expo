@@ -21,7 +21,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#080706"
+        "backgroundColor": "#ffffff"
       },
       "package": "com.saulfino.barberpilot",
       "googleServicesFile": "./google-services.json",

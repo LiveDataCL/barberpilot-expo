@@ -99,8 +99,6 @@ export default function HoyScreen({ barbero }) {
   const [fechaHasta,    setFechaHasta]   = useState('');
   const [agenda,        setAgenda]       = useState([]);
   const [agendaVisible, setAgendaVisible]= useState(false);
-  const [kpi,           setKpi]          = useState(null);
-  const [kpiVisible,    setKpiVisible]   = useState(false);
   const [avgTicket,     setAvgTicket]    = useState(13000);
 
   const cargar = useCallback(async (silent = false) => {
@@ -174,29 +172,6 @@ export default function HoyScreen({ barbero }) {
     if (agenda.length > 0) setAgendaVisible(true);
   }, [agenda.length]);
 
-  // Cargar KPI del mes actual
-  useEffect(() => {
-    api.get(`/kpi/${mesPeriodo()}`)
-      .then(data => {
-        if (!data.ok) return;
-        const rows = (data.evaluaciones || []).filter(e => e.bid === barbero.bid);
-        if (!rows.length) return;
-        const disqRow   = rows.find(e => e.metrica === '_disq');
-        const metricas  = rows.filter(e => e.metrica !== '_disq');
-        const rawScore  = metricas.reduce((a, e) => a + parseFloat(e.valor || 0), 0);
-        const pct       = Math.min(100, Math.round(rawScore / KPI_MAX * 100));
-        const disq      = disqRow?.disq || false;
-        setKpi({
-          metricas,
-          disq,
-          disqMotivo: disqRow?.disq_motivo || '',
-          rawScore,
-          pct,
-          bonus: calcBonus(disq, pct),
-        });
-      })
-      .catch(() => {});
-  }, [barbero.bid]);
 
   // avgTicket: ticket promedio real de los últimos 30 días (independiente del período)
   useEffect(() => {
@@ -419,62 +394,6 @@ export default function HoyScreen({ barbero }) {
         </>
       )}
 
-      {/* ── MI PUNTUACIÓN KPI ── */}
-      {periodo === 'hoy' && (
-        <View style={s.card}>
-          <TouchableOpacity
-            style={s.agendaHeader}
-            onPress={() => setKpiVisible(v => !v)}
-          >
-            <Text style={s.cardTitle}>MI PUNTUACIÓN · MES ACTUAL</Text>
-            <Text style={s.agendaToggle}>{kpiVisible ? '▲' : '▼'}</Text>
-          </TouchableOpacity>
-
-          {kpiVisible && (
-            kpi === null ? (
-              <Text style={s.agendaVacia}>Sin evaluación este mes</Text>
-            ) : (
-              <>
-                {kpi.disq && (
-                  <View style={s.kpiDisqBanner}>
-                    <Text style={s.kpiDisqTxt}>
-                      ⚠ Descalificado: {kpi.disqMotivo || 'Ver con la dirección'}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={s.kpiScoreRow}>
-                  <View style={s.kpiScoreBox}>
-                    <Text style={[s.kpiScore, { color: barbero.color }]}>
-                      {kpi.pct}
-                    </Text>
-                    <Text style={s.kpiScoreSub}>/ 100 pts</Text>
-                  </View>
-                  <View style={s.kpiBonusBox}>
-                    <Text style={s.kpiBonusLbl}>BONO MES</Text>
-                    <Text style={[s.kpiBonusVal,
-                      { color: kpi.bonus > 0 && !kpi.disq ? COLORS.ok : COLORS.text3 }
-                    ]}>
-                      {kpi.bonus > 0 && !kpi.disq ? `$${fmt(kpi.bonus)}` : '$0'}
-                    </Text>
-                  </View>
-                </View>
-
-                {kpi.metricas.map(m => (
-                  <View key={m.metrica} style={s.kpiMetricRow}>
-                    <Text style={s.kpiMetricNom} numberOfLines={1}>
-                      {KPI_LABELS[m.metrica] || m.metrica}
-                    </Text>
-                    <Text style={s.kpiMetricVal}>
-                      {parseFloat(m.valor).toFixed(1)}
-                    </Text>
-                  </View>
-                ))}
-              </>
-            )
-          )}
-        </View>
-      )}
 
       {/* ── AGENDA DEL DÍA ── */}
       {periodo === 'hoy' && (
