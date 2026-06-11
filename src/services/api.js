@@ -44,8 +44,30 @@ export const api = {
   mes:     (bid, periodo)  => apiFetch(`/barbero/${bid}/mes/${periodo}`),
   ranking: (periodo)       => apiFetch(`/stats/mes/${periodo}`),
 
-  registrar: (reg) =>
-    apiFetch('/registros', { method: 'POST', body: JSON.stringify(reg) }),
+  registrar: async (reg) => {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const r = await fetch(`${API_URL}/registros`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reg),
+      });
+      clearTimeout(tid);
+      // 409 = duplicate — not a failure, caller handles it
+      if (r.status === 409) return { ok: false, error: 'duplicate' };
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e.error || `HTTP ${r.status}`);
+      }
+      return r.json();
+    } catch (e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') throw new Error('La conexión tardó demasiado. Intenta de nuevo.');
+      throw e;
+    }
+  },
 
   subirFoto: (regId, base64, mimeType = 'image/jpeg') =>
     apiFetch('/comprobantes', { method: 'POST', body: JSON.stringify({ regId, imagen: base64, mimeType }) }),

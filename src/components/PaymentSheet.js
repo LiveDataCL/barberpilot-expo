@@ -24,17 +24,20 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
   // server's duplicate guard (POST /registros 409) blocks a second insert.
   const regIdRef = useRef(null);
 
-  // Reset every time the sheet opens
+  // Reset every time the sheet opens.
+  // Billing ID is anchored to entry.id (queue entry UUID) — never to Date.now().
+  // This means close+reopen for the same service always produces the same billing
+  // ID, so the server's ON CONFLICT guard catches duplicates even across retries.
   useEffect(() => {
-    if (visible) {
+    if (visible && entry) {
       setPago('efectivo');
       setPropina('');
       setManualPrecio('');
       setLoading(false);
       setError('');
-      regIdRef.current = 'TK' + Date.now();
+      regIdRef.current = 'TK' + entry.id.replace(/-/g, '');
     }
-  }, [visible]);
+  }, [visible, entry?.id]);
 
   if (!entry) return null;
 

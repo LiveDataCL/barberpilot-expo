@@ -127,7 +127,7 @@ export default function App() {
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
-      if (data?.screen === 'Agenda') setTab('hoy');
+      if (data?.screen === 'Agenda') setTab('cola');
     });
     return () => sub.remove();
   }, []);
@@ -159,13 +159,17 @@ export default function App() {
       });
   }, [usuario]);
 
-  const logout = () => {
-    console.log('[LOGOUT] logout() called — clearing usuario');
-    setUsuario(null);   // first: triggers LoginScreen immediately, no HoyScreen flash
+  const logout = async () => {
+    // Clear persisted session BEFORE setting usuario=null so LoginScreen's
+    // useEffect doesn't auto-login again with the stale SecureStore keys.
+    try {
+      await SecureStore.deleteItemAsync('bp_bid');
+      await SecureStore.deleteItemAsync('bp_day');
+    } catch {}
+    setUsuario(null);
     setTab('hoy');
     setAvatarImage(null);
     setAvatarEmoji(null);
-    console.log('[LOGOUT] all state cleared');
   };
 
   if (!usuario) {
