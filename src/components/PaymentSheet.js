@@ -73,10 +73,12 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
       com:     com,
       bb:      bb,
       neg:     neg,
-      propina: propinaNum,
-      fecha:   hoy(),
-      hora:    `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
-      ts:      Date.now(),
+      propina:          propinaNum,
+      fecha:            hoy(),
+      hora:             `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
+      ts:               Date.now(),
+      cliente_nombre:   entry.client_name  || null,
+      cliente_telefono: entry.phone        || null,
     };
 
     try {
