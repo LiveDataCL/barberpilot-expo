@@ -29,6 +29,7 @@ export default function RegistrarScreen({ barbero }) {
   const [enviando, setEnviando]     = useState(false);
   const [exito, setExito]           = useState(false);
   // CRM — datos del cliente
+  const [clienteNombre, setClienteNombre]   = useState('');
   const [guardarCliente, setGuardarCliente] = useState(false);
   const [cliNombre, setCliNombre]   = useState('');
   const [cliTel, setCliTel]         = useState('');
@@ -133,6 +134,7 @@ export default function RegistrarScreen({ barbero }) {
         fecha:  hoy(),
         hora,
         ts,
+        cliente_nombre: clienteNombre.trim() || null,
       };
 
       const res = await api.registrar(reg);
@@ -175,6 +177,7 @@ export default function RegistrarScreen({ barbero }) {
       setExito(true);
       setTimeout(() => {
         setSid('s01'); setPrecioLibre(''); setNombreCustom('');
+        setClienteNombre('');
         setPago('efectivo'); setPropina(''); setFoto(null);
         setGuardarCliente(false); setCliNombre(''); setCliTel('');
         setCliCorreo(''); setCliNotas(''); setCliEncontrado(false); setExito(false);
@@ -239,6 +242,17 @@ export default function RegistrarScreen({ barbero }) {
           />
         </View>
       )}
+
+      {/* NOMBRE DEL CLIENTE */}
+      <Text style={[s.sectionLbl, { marginTop: 20 }]}>NOMBRE DEL CLIENTE (opcional)</Text>
+      <TextInput
+        style={[s.input, s.inputFull]}
+        value={clienteNombre}
+        onChangeText={setClienteNombre}
+        placeholder="Ej: Carlos R."
+        placeholderTextColor={COLORS.text3}
+        autoCapitalize="words"
+      />
 
       {/* PROPINA */}
       <Text style={[s.sectionLbl, { marginTop: 20 }]}>PROPINA (opcional)</Text>
