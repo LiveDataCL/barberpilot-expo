@@ -41,7 +41,9 @@ export default function SocioScreen() {
     if (per === 'semana') {
       const dia = d.getDay();
       d.setDate(d.getDate() - (dia === 0 ? 6 : dia - 1));
-      return d.toISOString().slice(0, 10);
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
     }
     if (per === 'mes') {
       return mesPeriodo() + '-01';
