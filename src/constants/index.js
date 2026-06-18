@@ -27,7 +27,6 @@ export const BARBEROS = [
   { bid: 'b1', nombre: 'Didian',  pin: '1234', color: '#c9a84c', letra: 'D',  bg: 'rgba(201,168,76,.18)', rol: 'barbero' },
   { bid: 'b2', nombre: 'Emerson', pin: '5678', color: '#4db87a', letra: 'E',  bg: 'rgba(77,184,122,.15)', rol: 'barbero' },
   { bid: 'b3', nombre: 'Samuel',  pin: '9012', color: '#5580d4', letra: 'S',  bg: 'rgba(85,128,212,.15)', rol: 'barbero' },
-  { bid: 'b4', nombre: 'David',   pin: '3456', color: '#a855d4', letra: 'DV', bg: 'rgba(168,85,212,.15)', rol: 'barbero' },
 ];
 
 export const ADMIN = {
