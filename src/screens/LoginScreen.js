@@ -130,8 +130,42 @@ export default function LoginScreen({ onLogin }) {
 
   const borrar = () => setPin(p => p.slice(0, -1));
 
+  const rechazar = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    Vibration.vibrate([0, 80, 60, 80]);
+    setError(true);
+    Animated.sequence([
+      Animated.timing(shake, { toValue: 10,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 6,   duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -6,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 0,   duration: 60, useNativeDriver: true }),
+    ]).start(() => { setPin(''); setError(false); });
+  };
+
   const validar = async (p) => {
-    // Leer PIN guardado en SecureStore (si fue cambiado), sino usar el default
+    // ── API verification — server checks active=TRUE, blocks deactivated barbers ──
+    try {
+      const res = await fetch(`${API_URL}/api/v2/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: 'saulfino', bid: perfil.bid, pin: p }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await guardarSesion(perfil);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onLogin(perfil);
+      } else {
+        // API explicitly rejected (wrong PIN or inactive) — hard fail, no local fallback
+        rechazar();
+      }
+      return;
+    } catch {
+      // Network truly unreachable — fall back to local PIN so barbers aren't locked out offline
+    }
+
+    // ── Offline fallback (only reached when API is completely unreachable) ──
     let pinCorrecto = perfil.pin;
     try {
       const guardado = await SecureStore.getItemAsync('bp_pin_' + perfil.bid);
@@ -142,16 +176,7 @@ export default function LoginScreen({ onLogin }) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onLogin(perfil);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Vibration.vibrate([0, 80, 60, 80]);
-      setError(true);
-      Animated.sequence([
-        Animated.timing(shake, { toValue: 10,  duration: 60, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: -10, duration: 60, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: 6,   duration: 60, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: -6,  duration: 60, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: 0,   duration: 60, useNativeDriver: true }),
-      ]).start(() => { setPin(''); setError(false); });
+      rechazar();
     }
   };
 
