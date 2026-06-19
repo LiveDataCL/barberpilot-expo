@@ -20,7 +20,12 @@ export const COLORS = {
 };
 
 // ─── API ──────────────────────────────────────────────────────
-export const API_URL = 'https://barberpilot-api-production.up.railway.app';
+// DEVELOP BRANCH — points to staging API.
+// Update this URL once Railway generates the staging service URL.
+// On `main`, this must remain the production URL (unchanged).
+export const API_URL = 'https://barberpilot-api-staging.up.railway.app';
+
+export const IS_STAGING = API_URL.includes('staging');
 
 // ─── BARBEROS ─────────────────────────────────────────────────
 export const BARBEROS = [

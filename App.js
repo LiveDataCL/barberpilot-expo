@@ -7,7 +7,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-import { API_URL, COLORS } from './src/constants';
+import { API_URL, IS_STAGING, COLORS } from './src/constants';
 import LoginScreen       from './src/screens/LoginScreen';
 import HoyScreen         from './src/screens/HoyScreen';
 import RegistrarScreen   from './src/screens/RegistrarScreen';
@@ -272,6 +272,11 @@ export default function App() {
               <Text style={s.logoutTxt}>⇄</Text>
             </TouchableOpacity>
           </View>
+          {IS_STAGING && (
+            <View style={s.stagingBanner}>
+              <Text style={s.stagingBannerTxt}>STAGING — datos sinteticos</Text>
+            </View>
+          )}
           <View style={{ flex: 1 }}>{renderScreen()}</View>
 
           {/* Modal Avatar */}
@@ -330,4 +335,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.5, textTransform: 'uppercase', fontWeight: '500' },
   navDot:   { position: 'absolute', bottom: 0, width: 16, height: 3,
     borderTopLeftRadius: 2, borderTopRightRadius: 2 },
+  stagingBanner:    { backgroundColor: '#7c3aed', paddingVertical: 3, alignItems: 'center' },
+  stagingBannerTxt: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+    textTransform: 'uppercase' },
 });
