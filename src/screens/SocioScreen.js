@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, AppState,
 } from 'react-native';
 import { COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
@@ -148,6 +148,21 @@ export default function SocioScreen() {
   }, [periodo, fechaDesde, fechaHasta]);
 
   useEffect(() => { cargar(); }, [periodo, fechaDesde, fechaHasta]);
+
+  // Auto-refresh every 60s for live periods (hoy / semana)
+  useEffect(() => {
+    if (periodo === 'custom' || periodo === 'mes') return;
+    const id = setInterval(() => cargar(true), 60_000);
+    return () => clearInterval(id);
+  }, [periodo, cargar]);
+
+  // Refresh when app returns to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') cargar(true);
+    });
+    return () => sub.remove();
+  }, [cargar]);
 
   return (
     <ScrollView
