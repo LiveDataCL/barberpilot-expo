@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   TouchableOpacity, ActivityIndicator,
 } from 'react-native';
-import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
+import { COLORS, FONTS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import MetaBanner from './MetaBanner';
 import { updateDayNotification } from '../services/DayNotification';
@@ -447,29 +447,30 @@ const s = StyleSheet.create({
   center:    { padding:40, alignItems:'center' },
 
   periodos:  { flexDirection:'row', gap:6, marginBottom:16, flexWrap:'wrap' },
-  periodoBtn:{ paddingHorizontal:14, paddingVertical:9, backgroundColor:COLORS.s2,
+  periodoBtn:{ paddingHorizontal:14, paddingVertical:8, backgroundColor:COLORS.s2,
     borderRadius:20, borderWidth:1, borderColor:COLORS.border },
-  periodoBtnOn:{ backgroundColor:'rgba(201,168,76,.12)', borderColor:COLORS.gold },
-  periodoBtnTxt:{ fontSize:13, color:COLORS.text2, fontWeight:'500' },
-  periodoBtnTxtOn:{ color:COLORS.gold, fontWeight:'700' },
+  periodoBtnOn:{ backgroundColor:'rgba(201,168,76,.1)', borderColor:'rgba(201,168,76,.6)' },
+  periodoBtnTxt:{ fontSize:12, color:COLORS.text2, fontFamily:'DMSans_500Medium' },
+  periodoBtnTxtOn:{ color:COLORS.gold, fontFamily:'DMSans_700Bold' },
 
   hero:      { alignItems:'center', paddingVertical:24 },
-  heroNum:   { fontSize:72, color:COLORS.ok, fontWeight:'200', lineHeight:80 },
-  heroLbl:   { fontSize:14, color:COLORS.text3, letterSpacing:2, textTransform:'uppercase' },
+  heroNum:   { fontSize:72, color:COLORS.ok, fontFamily:'CormorantGaramond_300Light', lineHeight:80 },
+  heroLbl:   { fontSize:11, color:COLORS.text3, letterSpacing:3, textTransform:'uppercase',
+    fontFamily:'DMSans_400Regular' },
 
   grid2:     { flexDirection:'row', flexWrap:'wrap', gap:10, marginBottom:14 },
   statCard:  { flex:1, minWidth:'45%', backgroundColor:COLORS.s2, borderRadius:14,
     borderWidth:1, borderColor:COLORS.border, padding:16 },
   statGreen: { backgroundColor:'rgba(77,184,122,.07)', borderColor:'rgba(77,184,122,.2)' },
   statGold:  { backgroundColor:'rgba(201,168,76,.07)', borderColor:'rgba(201,168,76,.2)' },
-  statVal:   { fontSize:24, color:COLORS.text, fontWeight:'600' },
-  statLbl:   { fontSize:11, color:COLORS.text3, marginTop:4,
-    textTransform:'uppercase', letterSpacing:1 },
+  statVal:   { fontSize:24, color:COLORS.text, fontFamily:'CormorantGaramond_600SemiBold' },
+  statLbl:   { fontSize:10, color:COLORS.text3, marginTop:4,
+    textTransform:'uppercase', letterSpacing:1.2, fontFamily:'DMSans_400Regular' },
 
   card:      { backgroundColor:COLORS.s1, borderRadius:14, borderWidth:1,
     borderColor:COLORS.border, padding:18, marginBottom:14 },
-  cardTitle: { fontSize:11, color:COLORS.text3, letterSpacing:2.5,
-    textTransform:'uppercase', marginBottom:14 },
+  cardTitle: { fontSize:10, color:COLORS.text3, letterSpacing:3,
+    textTransform:'uppercase', marginBottom:14, fontFamily:'DMSans_500Medium' },
 
   rowBetween:{ flexDirection:'row', justifyContent:'space-between',
     alignItems:'center', marginBottom:4 },

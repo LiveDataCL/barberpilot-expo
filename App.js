@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Feather } from '@expo/vector-icons';
+import { useFonts,
+  CormorantGaramond_300Light,
+  CormorantGaramond_300Light_Italic,
+  CormorantGaramond_600SemiBold,
+} from '@expo-google-fonts/cormorant-garamond';
+import { useFonts as useFontsDM,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
@@ -31,14 +42,14 @@ Notifications.setNotificationHandler({
 });
 
 const TABS_BARBERO = [
-  { id: 'hoy',        label: 'Hoy',        icon: '✂️' },
-  { id: 'cola',       label: 'Cola',       icon: '📋' },
-  { id: 'registrar',  label: 'Registrar',  icon: '➕' },
-  { id: 'mes',        label: 'Mi Mes',     icon: '📊' },
-  { id: 'tendencias', label: 'Tendencias', icon: '🔥' },
-  { id: 'cobrar',     label: 'Cobrar',     icon: '💰' },
-  { id: 'mensajes',   label: 'Notas',      icon: '💬' },
-  { id: 'config',     label: 'Config',     icon: '⚙️' },
+  { id: 'hoy',        label: 'Hoy',       icon: 'scissors'    },
+  { id: 'cola',       label: 'Cola',      icon: 'users'       },
+  { id: 'registrar',  label: 'Nuevo',     icon: 'plus-circle' },
+  { id: 'mes',        label: 'Mi Mes',    icon: 'bar-chart-2' },
+  { id: 'tendencias', label: 'Tendenc.',  icon: 'trending-up' },
+  { id: 'cobrar',     label: 'Cobrar',    icon: 'dollar-sign' },
+  { id: 'mensajes',   label: 'Notas',     icon: 'message-square' },
+  { id: 'config',     label: 'Config',    icon: 'settings'    },
 ];
 
 async function registrarPushToken(bid) {
@@ -123,6 +134,17 @@ export default function App() {
   const [avatarEmoji, setAvatarEmoji] = useState(null);
   const [avatarImage, setAvatarImage] = useState(null);
 
+  const [fontsLoaded] = useFonts({
+    CormorantGaramond_300Light,
+    CormorantGaramond_300Light_Italic,
+    CormorantGaramond_600SemiBold,
+  });
+  const [dmFontsLoaded] = useFontsDM({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
+  });
+
   // Navegar a Agenda cuando el barbero toca la notificación de nueva cita
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
@@ -171,6 +193,14 @@ export default function App() {
     setAvatarImage(null);
     setAvatarEmoji(null);
   };
+
+  if (!fontsLoaded || !dmFontsLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={COLORS.gold} size="small" />
+      </View>
+    );
+  }
 
   if (!usuario) {
     return (
@@ -293,18 +323,20 @@ export default function App() {
           )}
 
           <SafeAreaView edges={['bottom']} style={s.nav}>
-            {TABS_BARBERO.map(t => (
-              <TouchableOpacity key={t.id} style={s.navBtn}
-                onPress={() => setTab(t.id)} activeOpacity={0.7}>
-                <Text style={s.navIcon}>{t.icon}</Text>
-                <Text style={[s.navLabel, tab === t.id && { color: usuario.color }]}>
-                  {t.label}
-                </Text>
-                {tab === t.id && (
-                  <View style={[s.navDot, { backgroundColor: usuario.color }]} />
-                )}
-              </TouchableOpacity>
-            ))}
+            {TABS_BARBERO.map(t => {
+              const active = tab === t.id;
+              const color = active ? usuario.color : COLORS.text3;
+              return (
+                <TouchableOpacity key={t.id} style={s.navBtn}
+                  onPress={() => setTab(t.id)} activeOpacity={0.7}>
+                  {active && <View style={[s.navBar, { backgroundColor: usuario.color }]} />}
+                  <Feather name={t.icon} size={18} color={color} />
+                  <Text style={[s.navLabel, active && { color: usuario.color }]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </SafeAreaView>
         </SafeAreaView>
       </SafeAreaProvider>
@@ -315,27 +347,28 @@ export default function App() {
 const s = StyleSheet.create({
   safe:     { flex: 1, backgroundColor: COLORS.bg },
   header:   { flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#0f0d08', borderBottomWidth: 1,
-    borderBottomColor: COLORS.border2, paddingHorizontal: 18, paddingVertical: 14 },
-  avatarSm:  { width: 40, height: 40, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  avatarImg:  { width: 40, height: 40, borderRadius: 20 },
-  avatarLetra:{ fontSize: 18, fontWeight: '700' },
-  hdrName:  { fontSize: 20, color: COLORS.text, fontWeight: '500', letterSpacing: 0.5 },
-  hdrSub:   { fontSize: 10, color: COLORS.gold, letterSpacing: 2.5,
-    textTransform: 'uppercase', marginTop: 1 },
+    backgroundColor: '#0c0a06', borderBottomWidth: 1,
+    borderBottomColor: 'rgba(201,168,76,.15)', paddingHorizontal: 18, paddingVertical: 12 },
+  avatarSm:  { width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(201,168,76,.3)' },
+  avatarImg:  { width: 38, height: 38, borderRadius: 19 },
+  avatarLetra:{ fontSize: 16, fontFamily: 'DMSans_700Bold' },
+  hdrName:  { fontSize: 18, color: COLORS.text, fontFamily: 'CormorantGaramond_600SemiBold',
+    letterSpacing: 0.5 },
+  hdrSub:   { fontSize: 9, color: COLORS.gold, letterSpacing: 3,
+    textTransform: 'uppercase', marginTop: 1, fontFamily: 'DMSans_400Regular' },
   logoutBtn:{ padding: 8 },
-  logoutTxt:{ fontSize: 22, color: COLORS.text3 },
-  nav:      { backgroundColor: COLORS.s1, borderTopWidth: 1,
-    borderTopColor: COLORS.border, flexDirection: 'row' },
-  navBtn:   { flex: 1, alignItems: 'center', paddingTop: 8, paddingBottom: 4,
+  logoutTxt:{ fontSize: 18, color: COLORS.text3 },
+  nav:      { backgroundColor: '#0a0806', borderTopWidth: 1,
+    borderTopColor: 'rgba(201,168,76,.12)', flexDirection: 'row' },
+  navBtn:   { flex: 1, alignItems: 'center', paddingTop: 10, paddingBottom: 6,
     position: 'relative' },
-  navIcon:  { fontSize: 20 },
-  navLabel: { fontSize: 9, color: COLORS.text3, marginTop: 3,
-    letterSpacing: 0.5, textTransform: 'uppercase', fontWeight: '500' },
-  navDot:   { position: 'absolute', bottom: 0, width: 16, height: 3,
-    borderTopLeftRadius: 2, borderTopRightRadius: 2 },
+  navBar:   { position: 'absolute', top: 0, left: '25%', right: '25%',
+    height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
+  navLabel: { fontSize: 8, color: COLORS.text3, marginTop: 4,
+    letterSpacing: 0.8, textTransform: 'uppercase', fontFamily: 'DMSans_500Medium' },
   stagingBanner:    { backgroundColor: '#7c3aed', paddingVertical: 3, alignItems: 'center' },
-  stagingBannerTxt: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
-    textTransform: 'uppercase' },
+  stagingBannerTxt: { color: '#fff', fontSize: 10, fontFamily: 'DMSans_700Bold',
+    letterSpacing: 1.5, textTransform: 'uppercase' },
 });

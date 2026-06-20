@@ -63,6 +63,16 @@ export const SERVICIOS = [
   { id: 'custom', nom: 'Especial…',                         precio:  0    },
 ];
 
+// ─── FONTS ────────────────────────────────────────────────────
+export const FONTS = {
+  display:  'CormorantGaramond_300Light_Italic',
+  displayR: 'CormorantGaramond_400Regular',
+  displayM: 'CormorantGaramond_600SemiBold',
+  sans:     'DMSans_400Regular',
+  sansM:    'DMSans_500Medium',
+  sansB:    'DMSans_700Bold',
+};
+
 // ─── HELPERS ──────────────────────────────────────────────────
 export const fmt = (n) =>
   Math.round(n).toLocaleString('es-CL');
