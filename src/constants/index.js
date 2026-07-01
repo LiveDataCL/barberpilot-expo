@@ -22,11 +22,14 @@ export const COLORS = {
 // ─── API ──────────────────────────────────────────────────────
 export const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
+export const IS_STAGING = false;
+
 // ─── BARBEROS ─────────────────────────────────────────────────
 export const BARBEROS = [
-  { bid: 'b1', nombre: 'Didian',  pin: '1234', color: '#c9a84c', letra: 'D',  bg: 'rgba(201,168,76,.18)', rol: 'barbero' },
-  { bid: 'b2', nombre: 'Emerson', pin: '5678', color: '#4db87a', letra: 'E',  bg: 'rgba(77,184,122,.15)', rol: 'barbero' },
-  { bid: 'b3', nombre: 'Samuel',  pin: '9012', color: '#5580d4', letra: 'S',  bg: 'rgba(85,128,212,.15)', rol: 'barbero' },
+  { bid: 'b1', nombre: 'Didian',  iniciales: 'DI', color: '#c9a84c', letra: 'D',  bg: 'rgba(201,168,76,.18)', rol: 'barbero' },
+  { bid: 'b2', nombre: 'Emerson', iniciales: 'EM', color: '#4db87a', letra: 'E',  bg: 'rgba(77,184,122,.15)', rol: 'barbero' },
+  { bid: 'b3', nombre: 'Samuel',  iniciales: 'SA', color: '#5580d4', letra: 'S',  bg: 'rgba(85,128,212,.15)', rol: 'barbero' },
+  { bid: 'b5', nombre: 'Steven',  iniciales: 'ST', color: '#e05555', letra: 'S',  bg: 'rgba(224,85,85,.15)',  rol: 'barbero' },
 ];
 
 export const ADMIN = {
@@ -57,6 +60,16 @@ export const SERVICIOS = [
   { id: 's11', nom: 'Corte Express + Perfilado de barba',   precio: 15000 },
   { id: 'custom', nom: 'Especial…',                         precio:  0    },
 ];
+
+// ─── FONTS ────────────────────────────────────────────────────
+export const FONTS = {
+  display:  'CormorantGaramond_300Light_Italic',
+  displayR: 'CormorantGaramond_400Regular',
+  displayM: 'CormorantGaramond_600SemiBold',
+  sans:     'DMSans_400Regular',
+  sansM:    'DMSans_500Medium',
+  sansB:    'DMSans_700Bold',
+};
 
 // ─── HELPERS ──────────────────────────────────────────────────
 export const fmt = (n) =>

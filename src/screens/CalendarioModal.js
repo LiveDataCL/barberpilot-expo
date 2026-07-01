@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions,
 } from 'react-native';
@@ -35,6 +35,14 @@ export default function CalendarioModal({ visible, onClose, onSelect }) {
   const [desde,     setDesde]     = useState(null);
   const [hasta,     setHasta]     = useState(null);
   const [fase,      setFase]      = useState('desde');
+
+  useEffect(() => {
+    if (!visible) {
+      setDesde(null);
+      setHasta(null);
+      setFase('desde');
+    }
+  }, [visible]);
 
   const totalDias = diasEnMes(viewYear, viewMonth);
   const offset    = primerDow(viewYear, viewMonth);

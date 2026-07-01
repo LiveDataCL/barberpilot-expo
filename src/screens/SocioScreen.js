@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, AppState,
 } from 'react-native';
-import { COLORS, fmt, fmtM, mesPeriodo } from '../constants';
+import { API_URL, COLORS, FONTS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
-
-const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
 const PERIODOS = [
   { id: 'hoy',    label: 'Hoy'         },
@@ -148,6 +146,21 @@ export default function SocioScreen() {
   }, [periodo, fechaDesde, fechaHasta]);
 
   useEffect(() => { cargar(); }, [periodo, fechaDesde, fechaHasta]);
+
+  // Auto-refresh every 60s for live periods (hoy / semana)
+  useEffect(() => {
+    if (periodo === 'custom' || periodo === 'mes') return;
+    const id = setInterval(() => cargar(true), 60_000);
+    return () => clearInterval(id);
+  }, [periodo, cargar]);
+
+  // Refresh when app returns to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') cargar(true);
+    });
+    return () => sub.remove();
+  }, [cargar]);
 
   return (
     <ScrollView
@@ -371,37 +384,38 @@ const s = StyleSheet.create({
   socioBadge:    { backgroundColor: 'rgba(85,128,212,.1)', borderRadius: 10,
     borderWidth: 1, borderColor: 'rgba(85,128,212,.3)',
     padding: 10, alignItems: 'center', marginBottom: 16 },
-  socioBadgeTxt: { fontSize: 11, color: COLORS.blue, fontWeight: '700', letterSpacing: 2 },
+  socioBadgeTxt: { fontSize: 10, color: COLORS.blue, fontFamily: 'DMSans_700Bold',
+    letterSpacing: 2.5, textTransform: 'uppercase' },
 
   proyCard:  { backgroundColor: 'rgba(201,168,76,.08)', borderRadius: 16,
     borderWidth: 1, borderColor: 'rgba(201,168,76,.25)',
     padding: 24, alignItems: 'center', marginBottom: 16 },
-  proyLbl:   { fontSize: 11, color: COLORS.gold, letterSpacing: 2.5,
-    textTransform: 'uppercase', marginBottom: 8 },
-  proyVal:   { fontSize: 38, color: COLORS.gold, fontWeight: '300' },
-  proyActual:{ fontSize: 13, color: COLORS.text3, marginTop: 6 },
+  proyLbl:   { fontSize: 10, color: COLORS.gold, letterSpacing: 3,
+    textTransform: 'uppercase', marginBottom: 8, fontFamily: 'DMSans_400Regular' },
+  proyVal:   { fontSize: 42, color: COLORS.gold, fontFamily: 'CormorantGaramond_300Light' },
+  proyActual:{ fontSize: 12, color: COLORS.text3, marginTop: 6, fontFamily: 'DMSans_400Regular' },
 
   periodosRow: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-  periodoBtn:  { flex: 1, paddingVertical: 10, backgroundColor: COLORS.s2,
+  periodoBtn:  { flex: 1, paddingVertical: 9, backgroundColor: COLORS.s2,
     borderRadius: 10, borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center', minWidth: 70 },
-  periodoBtnOn:    { backgroundColor: 'rgba(201,168,76,.12)', borderColor: COLORS.gold },
-  periodoBtnTxt:   { fontSize: 12, color: COLORS.text2, fontWeight: '500' },
-  periodoBtnTxtOn: { color: COLORS.gold, fontWeight: '700' },
+  periodoBtnOn:    { backgroundColor: 'rgba(201,168,76,.1)', borderColor: 'rgba(201,168,76,.6)' },
+  periodoBtnTxt:   { fontSize: 12, color: COLORS.text2, fontFamily: 'DMSans_400Regular' },
+  periodoBtnTxtOn: { color: COLORS.gold, fontFamily: 'DMSans_700Bold' },
 
   grid2:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
   statCard: { flex: 1, minWidth: '45%', backgroundColor: COLORS.s2,
     borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 16 },
   statGreen:{ backgroundColor: 'rgba(77,184,122,.07)', borderColor: 'rgba(77,184,122,.2)' },
   statGold: { backgroundColor: 'rgba(201,168,76,.07)', borderColor: 'rgba(201,168,76,.2)' },
-  statVal:  { fontSize: 22, color: COLORS.text, fontWeight: '600' },
-  statLbl:  { fontSize: 11, color: COLORS.text3, marginTop: 4,
-    textTransform: 'uppercase', letterSpacing: 1 },
+  statVal:  { fontSize: 26, color: COLORS.text, fontFamily: 'CormorantGaramond_600SemiBold' },
+  statLbl:  { fontSize: 10, color: COLORS.text3, marginTop: 4,
+    textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'DMSans_400Regular' },
 
   card:     { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.border, padding: 18, marginBottom: 14 },
-  cardTitle:{ fontSize: 11, color: COLORS.text3, letterSpacing: 2.5,
-    textTransform: 'uppercase', marginBottom: 14 },
+  cardTitle:{ fontSize: 10, color: COLORS.text3, letterSpacing: 3,
+    textTransform: 'uppercase', marginBottom: 14, fontFamily: 'DMSans_500Medium' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.75)',
     justifyContent: 'flex-end' },

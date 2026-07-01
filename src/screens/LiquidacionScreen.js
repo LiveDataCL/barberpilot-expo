@@ -20,7 +20,7 @@ export default function LiquidacionScreen({ barbero }) {
     setRefreshing(false);
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); }, [barbero.bid]);
 
   if (loading) return (
     <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>

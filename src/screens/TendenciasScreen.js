@@ -3,9 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   ActivityIndicator, Dimensions,
 } from 'react-native';
-import { COLORS, fmt, mesPeriodo } from '../constants';
-
-const API_URL = 'https://barberpilot-api-production.up.railway.app';
+import { API_URL, COLORS, fmt, mesPeriodo } from '../constants';
 const { width } = Dimensions.get('window');
 const CHART_W = width - 36;
 
@@ -72,7 +70,7 @@ export default function TendenciasScreen({ barbero }) {
     setRefreshing(false);
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); }, [barbero?.bid]);
 
   if (loading) return (
     <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold}/></View>

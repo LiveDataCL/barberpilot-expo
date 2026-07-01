@@ -3,9 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView,
   RefreshControl, ActivityIndicator,
 } from 'react-native';
-import { COLORS } from '../constants';
-
-const API_URL = 'https://barberpilot-api-production.up.railway.app';
+import { API_URL, COLORS } from '../constants';
 
 export default function MensajesScreen({ barbero }) {
   const [mensajes, setMensajes] = useState([]);
@@ -23,7 +21,7 @@ export default function MensajesScreen({ barbero }) {
     setRefreshing(false);
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); }, [barbero.bid]);
 
   const formatFecha = (ts) => {
     const d = new Date(ts);

@@ -7,10 +7,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
-import { COLORS, fmt, fmtM, hoy, mesPeriodo, BARBEROS, SERVICIOS } from '../constants';
+import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, BARBEROS, SERVICIOS } from '../constants';
 import { api } from '../services/api';
-
-const API_URL = 'https://barberpilot-api-production.up.railway.app';
 const { width } = Dimensions.get('window');
 
 const TABS_ADMIN = [
@@ -55,7 +53,6 @@ export default function AdminScreen({ onLogout }) {
 
   const cargarTendencias = async () => {
     try {
-      const API_URL2 = 'https://barberpilot-api-production.up.railway.app';
       const desde = mesPeriodo() + '-01';
       const hasta = hoy();
       const dias = [];
@@ -63,7 +60,7 @@ export default function AdminScreen({ onLogout }) {
       const fin = new Date(hasta + 'T12:00:00');
       while (cur <= fin) { dias.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
       const results = await Promise.all(
-        dias.map(f => fetch(`${API_URL2}/registros/dia?fecha=${f}`)
+        dias.map(f => fetch(`${API_URL}/registros/dia?fecha=${f}`)
           .then(r => r.json()).catch(() => ({ok:false,registros:[]})))
       );
       let allRegs = [];
@@ -117,6 +114,10 @@ export default function AdminScreen({ onLogout }) {
     const interval = setInterval(() => cargar(true), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (tab === 'tendencias' && !tendData) cargarTendencias();
+  }, [tab]);
 
   const aprobar = async (id) => {
     try {
@@ -267,7 +268,7 @@ export default function AdminScreen({ onLogout }) {
     try {
       await fetch(`${API_URL}/push/test`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({bid}),
+        body: JSON.stringify({ bid, title, body }),
       });
     } catch {}
   };
@@ -597,7 +598,6 @@ export default function AdminScreen({ onLogout }) {
 
   const renderTendAdmin = () => {
     if (!tendData) {
-      cargarTendencias();
       return <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold}/></View>;
     }
     const DIAS_SEM = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];

@@ -42,7 +42,7 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
   if (!entry) return null;
 
   // ── Price lookup ──────────────────────────────────────────────
-  const svc = SERVICIOS.find(s => s.nom === entry.service);
+  const svc = SERVICIOS.find(s => s.nom.trim().toLowerCase() === (entry.service || '').trim().toLowerCase());
   const catalogPrecio = svc?.precio ?? null;
   const hasManual     = catalogPrecio === null;
   const servicePrecio = hasManual ? (parseInt(manualPrecio) || 0) : catalogPrecio;
