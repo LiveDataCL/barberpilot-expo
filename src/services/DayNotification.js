@@ -17,15 +17,13 @@ async function ensureChannel() {
 export async function updateDayNotification(barbero, n, factura, cobra) {
   try {
     await ensureChannel();
-    await Notifications.dismissNotificationAsync(NOTIF_ID).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(NOTIF_ID).catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: NOTIF_ID,
       content: {
         title: 'BarberPilot · ' + barbero.nombre,
         body:  '✂️ ' + n + ' servicios · 💰 $' + Math.round(cobra).toLocaleString('es-CL'),
-        sticky: true,
-        autoDismiss: false,
-        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, ongoing: true } : {}),
+        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
       },
       trigger: null,
     });

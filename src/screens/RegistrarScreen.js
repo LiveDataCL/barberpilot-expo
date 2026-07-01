@@ -3,11 +3,10 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Image, Alert, ActivityIndicator, Dimensions, Switch,
 } from 'react-native';
-const API_URL = 'https://barberpilot-api-production.up.railway.app';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SERVICIOS, fmt, hoy } from '../constants';
+import { API_URL, COLORS, SERVICIOS, fmt, hoy } from '../constants';
 import { api } from '../services/api';
 import { updateDayNotification } from '../services/DayNotification';
 
@@ -58,7 +57,7 @@ export default function RegistrarScreen({ barbero }) {
       : await ImagePicker.launchCameraAsync({ base64: true, quality: 0.7, allowsEditing: true });
 
     if (!result.canceled && result.assets?.[0]) {
-      setFoto({ uri: result.assets[0].uri, base64: result.assets[0].base64 });
+      setFoto({ uri: result.assets[0].uri, base64: result.assets[0].base64, mimeType: result.assets[0].mimeType });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   };
@@ -74,7 +73,7 @@ export default function RegistrarScreen({ barbero }) {
   // ── Buscar cliente por teléfono ───────────────────────────
   const buscarClientePorTel = async (tel) => {
     setCliTel(tel);
-    if (tel.length < 8) { setCliEncontrado(false); return; }
+    if (tel.length < 8) { setCliEncontrado(false); setCliBuscando(false); return; }
     setCliBuscando(true);
     try {
       const r = await fetch(`${API_URL}/clientes?tel=${encodeURIComponent(tel)}`).then(x => x.json());
@@ -145,7 +144,7 @@ export default function RegistrarScreen({ barbero }) {
 
       // Subir foto si existe
       if (foto?.base64) {
-        await api.subirFoto(regId, foto.base64).catch(() => {});
+        await api.subirFoto(regId, foto.base64, foto.mimeType).catch(() => {});
       }
 
       // Guardar cliente si autorizó

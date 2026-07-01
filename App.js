@@ -18,8 +18,9 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-import { API_URL, IS_STAGING, COLORS } from './src/constants';
+import { API_URL, IS_STAGING, COLORS, BARBEROS } from './src/constants';
 import LoginScreen       from './src/screens/LoginScreen';
+import SetupPinScreen    from './src/screens/SetupPinScreen';
 import HoyScreen         from './src/screens/HoyScreen';
 import RegistrarScreen   from './src/screens/RegistrarScreen';
 import MesScreen         from './src/screens/MesScreen';
@@ -128,11 +129,13 @@ async function registrarPushToken(bid) {
 }
 
 export default function App() {
-  const [usuario, setUsuario]         = useState(null);
-  const [tab, setTab]                 = useState('hoy');
-  const [showAvatar, setShowAvatar]   = useState(false);
-  const [avatarEmoji, setAvatarEmoji] = useState(null);
-  const [avatarImage, setAvatarImage] = useState(null);
+  const [usuario,      setUsuario]      = useState(null);
+  const [setupPin,     setSetupPin]     = useState(null); // { perfil, loginPin } when pin_set=false
+  const [authReady,    setAuthReady]    = useState(false);
+  const [tab,          setTab]          = useState('hoy');
+  const [showAvatar,   setShowAvatar]   = useState(false);
+  const [avatarEmoji,  setAvatarEmoji]  = useState(null);
+  const [avatarImage,  setAvatarImage]  = useState(null);
 
   const [fontsLoaded] = useFonts({
     CormorantGaramond_300Light,
@@ -144,6 +147,36 @@ export default function App() {
     DMSans_500Medium,
     DMSans_700Bold,
   });
+
+  // 3E — JWT session restore on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await SecureStore.getItemAsync('bp_auth_token');
+        if (token) {
+          const res  = await fetch(`${API_URL}/api/v2/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const json = await res.json();
+          if (res.ok && json.ok) {
+            const perfil = BARBEROS.find(b => b.bid === json.bid) || {
+              bid: json.bid, nombre: json.bnom, rol: json.role,
+              color: COLORS.gold, letra: json.bnom?.[0] || '?',
+              bg: 'rgba(201,168,76,.18)',
+            };
+            if (!json.pin_set) {
+              setSetupPin({ perfil, loginPin: null });
+            } else {
+              setUsuario(perfil);
+            }
+          } else {
+            await SecureStore.deleteItemAsync('bp_auth_token');
+          }
+        }
+      } catch { /* network error — stay on LoginScreen */ }
+      setAuthReady(true);
+    })();
+  }, []);
 
   // Navegar a Agenda cuando el barbero toca la notificación de nueva cita
   useEffect(() => {
@@ -172,29 +205,33 @@ export default function App() {
         }
       })
       .catch(() => {
-        SecureStore.getItemAsync(`bp_avatar_img_${usuario.bid}`)
-          .then(uri => { if (uri) setAvatarImage(uri); })
-          .catch(() => {});
         SecureStore.getItemAsync(`bp_avatar_${usuario.bid}`)
           .then(em => { if (em) setAvatarEmoji(em); })
           .catch(() => {});
       });
   }, [usuario]);
 
+  // Called by LoginScreen after successful /api/v2/auth/login
+  const handleLogin = ({ perfil, requireSetupPin, loginPin }) => {
+    if (requireSetupPin) {
+      setSetupPin({ perfil, loginPin });
+    } else {
+      setUsuario(perfil);
+    }
+  };
+
   const logout = async () => {
-    // Clear persisted session BEFORE setting usuario=null so LoginScreen's
-    // useEffect doesn't auto-login again with the stale SecureStore keys.
     try {
-      await SecureStore.deleteItemAsync('bp_bid');
-      await SecureStore.deleteItemAsync('bp_day');
+      await SecureStore.deleteItemAsync('bp_auth_token');
     } catch {}
     setUsuario(null);
+    setSetupPin(null);
     setTab('hoy');
     setAvatarImage(null);
     setAvatarEmoji(null);
   };
 
-  if (!fontsLoaded || !dmFontsLoaded) {
+  if (!fontsLoaded || !dmFontsLoaded || !authReady) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={COLORS.gold} size="small" />
@@ -202,11 +239,25 @@ export default function App() {
     );
   }
 
+  // 3G — SetupPin screen (pin_set=false after login or session restore)
+  if (setupPin) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StatusBar style="light" />
+        <SetupPinScreen
+          perfil={setupPin.perfil}
+          loginPin={setupPin.loginPin}
+          onDone={() => { setUsuario(setupPin.perfil); setSetupPin(null); }}
+        />
+      </GestureHandlerRootView>
+    );
+  }
+
   if (!usuario) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar style="light" />
-        <LoginScreen onLogin={setUsuario} />
+        <LoginScreen onLogin={handleLogin} />
       </GestureHandlerRootView>
     );
   }

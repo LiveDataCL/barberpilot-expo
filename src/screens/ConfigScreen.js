@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, Switch, Alert,
 } from 'react-native';
-import { COLORS, fmt, fmtM, mesPeriodo, hoy, TODOS_PERFILES } from '../constants';
+import { API_URL, COLORS, fmt, fmtM, mesPeriodo, hoy, TODOS_PERFILES } from '../constants';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../services/api';
 
@@ -15,8 +15,6 @@ const PERIODOS = [
 ];
 
 const PAGOS_OPT = ['Todos', 'efectivo', 'debito', 'transferencia'];
-
-const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
 export default function ConfigScreen({ barbero, onLogout }) {
   const [periodo,   setPeriodo]   = useState('mes');
@@ -138,8 +136,9 @@ export default function ConfigScreen({ barbero, onLogout }) {
     if (!pinActual || !pinNuevo || !pinConfirm) {
       setPinMsg({ ok: false, txt: 'Completa todos los campos' }); return;
     }
-    if (pinNuevo.length < 4) {
-      setPinMsg({ ok: false, txt: 'El PIN debe tener al menos 4 dígitos' }); return;
+    const pinMinLen = barbero?.rol === 'admin' ? 6 : 4;
+    if (pinNuevo.length < pinMinLen) {
+      setPinMsg({ ok: false, txt: `El PIN debe tener al menos ${pinMinLen} dígitos` }); return;
     }
     if (pinNuevo !== pinConfirm) {
       setPinMsg({ ok: false, txt: 'Los PINs nuevos no coinciden' }); return;

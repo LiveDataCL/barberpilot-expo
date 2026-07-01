@@ -1,3 +1,4 @@
+import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../constants';
 
 const TIMEOUT_MS = 10000;
@@ -79,7 +80,14 @@ export const api = {
 
   queue:        (barberId)       => apiFetch(`/queue?barber=${barberId}`),
   queueStats:   ()               => apiFetch('/queue/stats'),
-  updateStatus: (id, status)     => apiFetch(`/queue/${id}/status`, { method: 'PUT',  body: JSON.stringify({ status }) }),
+  updateStatus: async (id, status) => {
+    const token = await SecureStore.getItemAsync('bp_auth_token').catch(() => null);
+    return apiFetch(`/queue/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    });
+  },
   notify:       (id, type)       => apiFetch(`/queue/${id}/notify`, { method: 'POST', body: JSON.stringify({ type }) }),
 
   agenda: (bid, fecha) => apiFetch(`/appointments?bid=${bid}&fecha=${fecha}`),

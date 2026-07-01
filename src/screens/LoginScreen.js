@@ -30,18 +30,6 @@ export default function LoginScreen({ onLogin }) {
     LocalAuthentication.hasHardwareAsync().then(has => {
       if (has) LocalAuthentication.isEnrolledAsync().then(setBioDisponible);
     });
-    // Restaurar sesión del mismo día
-    (async () => {
-      try {
-        const savedDay = await SecureStore.getItemAsync('bp_day');
-        const savedBid = await SecureStore.getItemAsync('bp_bid');
-        const today    = new Date().toISOString().slice(0, 10);
-        if (savedDay === today && savedBid) {
-          const p = TODOS_PERFILES.find(x => x.bid === savedBid);
-          if (p) onLogin(p);
-        }
-      } catch {}
-    })();
   }, []);
 
   // Animación del logo al montar
@@ -144,7 +132,6 @@ export default function LoginScreen({ onLogin }) {
   };
 
   const validar = async (p) => {
-    // ── API verification — server checks active=TRUE, blocks deactivated barbers ──
     try {
       const res = await fetch(`${API_URL}/api/v2/auth/login`, {
         method: 'POST',
@@ -152,39 +139,29 @@ export default function LoginScreen({ onLogin }) {
         body: JSON.stringify({ tenant_id: 'saulfino', bid: perfil.bid, pin: p }),
       });
       const json = await res.json();
-      if (json.ok) {
-        await guardarSesion(perfil);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onLogin(perfil);
-      } else {
-        // API explicitly rejected (wrong PIN or inactive) — hard fail, no local fallback
+      if (res.status === 401 || !json.ok) {
         rechazar();
+        return;
       }
-      return;
-    } catch {
-      // Network truly unreachable — fall back to local PIN so barbers aren't locked out offline
-    }
-
-    // ── Offline fallback (only reached when API is completely unreachable) ──
-    let pinCorrecto = perfil.pin;
-    try {
-      const guardado = await SecureStore.getItemAsync('bp_pin_' + perfil.bid);
-      if (guardado) pinCorrecto = guardado;
-    } catch {}
-    if (p === pinCorrecto) {
-      await guardarSesion(perfil);
+      // Store JWT for session persistence
+      await SecureStore.setItemAsync('bp_auth_token', json.token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onLogin(perfil);
-    } else {
-      rechazar();
+      if (!json.pin_set) {
+        // First-time setup — pass login PIN so set-pin can verify current_pin
+        onLogin({ perfil, requireSetupPin: true, loginPin: p });
+      } else {
+        onLogin({ perfil });
+      }
+    } catch {
+      // Network unreachable — do NOT fall back to local PINs (security policy)
+      setError(true);
+      Animated.sequence([
+        Animated.timing(shake, { toValue: 6,   duration: 60, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -6,  duration: 60, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0,   duration: 60, useNativeDriver: true }),
+      ]).start(() => { setPin(''); setError(false); });
+      Alert.alert('Sin conexión', 'No se pudo conectar al servidor. Intenta de nuevo.');
     }
-  };
-
-  const guardarSesion = async (p) => {
-    try {
-      await SecureStore.setItemAsync('bp_bid', p.bid);
-      await SecureStore.setItemAsync('bp_day', new Date().toISOString().slice(0, 10));
-    } catch {}
   };
 
   // ── GRUPOS DE PERFILES ────────────────────────────────────

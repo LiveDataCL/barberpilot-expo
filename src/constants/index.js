@@ -20,18 +20,16 @@ export const COLORS = {
 };
 
 // ─── API ──────────────────────────────────────────────────────
-// DEVELOP BRANCH — points to staging API.
-// Update this URL once Railway generates the staging service URL.
-// On `main`, this must remain the production URL (unchanged).
-export const API_URL = 'https://barberpilot-api-staging.up.railway.app';
+export const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
-export const IS_STAGING = API_URL.includes('staging');
+export const IS_STAGING = false;
 
 // ─── BARBEROS ─────────────────────────────────────────────────
 export const BARBEROS = [
-  { bid: 'b1', nombre: 'Didian',  pin: '1234', color: '#c9a84c', letra: 'D',  bg: 'rgba(201,168,76,.18)', rol: 'barbero' },
-  { bid: 'b2', nombre: 'Emerson', pin: '5678', color: '#4db87a', letra: 'E',  bg: 'rgba(77,184,122,.15)', rol: 'barbero' },
-  { bid: 'b3', nombre: 'Samuel',  pin: '9012', color: '#5580d4', letra: 'S',  bg: 'rgba(85,128,212,.15)', rol: 'barbero' },
+  { bid: 'b1', nombre: 'Didian',  iniciales: 'DI', color: '#c9a84c', letra: 'D',  bg: 'rgba(201,168,76,.18)', rol: 'barbero' },
+  { bid: 'b2', nombre: 'Emerson', iniciales: 'EM', color: '#4db87a', letra: 'E',  bg: 'rgba(77,184,122,.15)', rol: 'barbero' },
+  { bid: 'b3', nombre: 'Samuel',  iniciales: 'SA', color: '#5580d4', letra: 'S',  bg: 'rgba(85,128,212,.15)', rol: 'barbero' },
+  { bid: 'b5', nombre: 'Steven',  iniciales: 'ST', color: '#e05555', letra: 'S',  bg: 'rgba(224,85,85,.15)',  rol: 'barbero' },
 ];
 
 export const ADMIN = {

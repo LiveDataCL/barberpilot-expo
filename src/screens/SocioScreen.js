@@ -3,10 +3,8 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, AppState,
 } from 'react-native';
-import { COLORS, FONTS, fmt, fmtM, mesPeriodo } from '../constants';
+import { API_URL, COLORS, FONTS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
-
-const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
 const PERIODOS = [
   { id: 'hoy',    label: 'Hoy'         },
