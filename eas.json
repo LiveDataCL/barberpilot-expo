@@ -13,9 +13,13 @@
       "distribution": "internal",
       "channel": "staging"
     },
-    "production": {
+    "internal": {
       "autoIncrement": true,
       "distribution": "internal",
+      "channel": "production"
+    },
+    "production": {
+      "autoIncrement": true,
       "channel": "production"
     }
   },
