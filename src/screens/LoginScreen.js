@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { COLORS, TODOS_PERFILES, ADMIN, API_URL, BARBEROS } from '../constants';
+import { COLORS, TODOS_PERFILES, ADMIN, API_URL, BARBEROS_FALLBACK } from '../constants';
 
 const { width, height } = Dimensions.get('window');
 
@@ -54,7 +54,7 @@ export default function LoginScreen({ onLogin }) {
     // Cargar fotos y emojis de cada barbero
     (async () => {
       const imgs = {};
-      await Promise.all(BARBEROS.map(async (b) => {
+      await Promise.all(BARBEROS_FALLBACK.map(async (b) => {
         try {
           const r    = await fetch(`${API_URL}/barbero/${b.bid}/avatar`);
           const json = await r.json();

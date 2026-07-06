@@ -7,7 +7,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
-import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, BARBEROS, SERVICIOS } from '../constants';
+import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS } from '../constants';
+import { useBarberos } from '../hooks/useBarberos';
 import { api } from '../services/api';
 const { width } = Dimensions.get('window');
 
@@ -51,6 +52,8 @@ export default function AdminScreen({ onLogout }) {
   // ── Avatares de barberos ──────────────────────────────────────
   const [avatarImgs, setAvatarImgs] = useState({});
 
+  const { barberos } = useBarberos();
+
   const cargarTendencias = async () => {
     try {
       const desde = mesPeriodo() + '-01';
@@ -68,7 +71,7 @@ export default function AdminScreen({ onLogout }) {
 
       // KPIs por barbero
       const kpisBarbero = {};
-      BARBEROS.forEach(b => { kpisBarbero[b.bid] = { svc:0, fact:0, bb:0, servicios:{} }; });
+      barberos.forEach(b => { kpisBarbero[b.bid] = { svc:0, fact:0, bb:0, servicios:{} }; });
       const porHora = {}; const porDia = {};
       for (let h=10;h<=19;h++) porHora[h]={svc:0,fact:0};
       for (let d=0;d<=6;d++)   porDia[d]={svc:0,fact:0};
@@ -164,7 +167,7 @@ export default function AdminScreen({ onLogout }) {
     if (!msgTexto.trim() || !msgBid) return;
     setEnviando(true);
     try {
-      const b = BARBEROS.find(x => x.bid === msgBid);
+      const b = barberos.find(x => x.bid === msgBid);
       await fetch(`${API_URL}/mensajes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -196,7 +199,7 @@ export default function AdminScreen({ onLogout }) {
   useEffect(() => {
     (async () => {
       const imgs = {};
-      for (const b of BARBEROS) {
+      for (const b of barberos) {
         const uri = await SecureStore.getItemAsync(`bp_avatar_img_${b.bid}`).catch(() => null);
         if (uri) imgs[b.bid] = uri;
       }
@@ -231,7 +234,7 @@ export default function AdminScreen({ onLogout }) {
     const svc = SERVICIOS.find(s => s.id === regSid) || SERVICIOS[0];
     const precio = svc.id === 'custom' ? (parseInt(regCustomPrecio)||0) : svc.precio;
     if (precio <= 0) { Alert.alert('Falta el precio'); return; }
-    const b = BARBEROS.find(x => x.bid === regBid);
+    const b = barberos.find(x => x.bid === regBid);
     const com = regPago === 'debito' ? 0.43 : 0.5;
     const bb  = Math.round(precio * com);
     const ts  = Date.now();
@@ -289,7 +292,7 @@ export default function AdminScreen({ onLogout }) {
           <Text style={{ fontSize: 48, marginBottom: 12 }}>OK</Text>
           <Text style={{ fontSize: 20, color: COLORS.ok, fontWeight: '600' }}>Registrado</Text>
           <Text style={{ fontSize: 14, color: COLORS.text3, marginTop: 6 }}>
-            Asignado a {BARBEROS.find(b => b.bid === regBid) ? BARBEROS.find(b => b.bid === regBid).nombre : regBid}
+            Asignado a {barberos.find(b => b.bid === regBid) ? barberos.find(b => b.bid === regBid).nombre : regBid}
           </Text>
         </View>
       );
@@ -300,7 +303,7 @@ export default function AdminScreen({ onLogout }) {
 
         <Text style={s.secLbl}>ASIGNAR A BARBERO</Text>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
-          {BARBEROS.map(function(b) {
+          {barberos.map(function(b) {
             return (
               <TouchableOpacity key={b.bid}
                 style={[s.accionCard, regBid === b.bid && { borderColor: b.color, backgroundColor: 'rgba(201,168,76,.08)' }]}
@@ -381,7 +384,7 @@ export default function AdminScreen({ onLogout }) {
           padding: 20, alignItems: 'center', marginBottom: 18 }}>
           <Text style={{ fontSize: 11, color: COLORS.text3, letterSpacing: 2,
             textTransform: 'uppercase', marginBottom: 6 }}>
-            {'RECIBE ' + (BARBEROS.find(function(b) { return b.bid === regBid; }) || {}).nombre}
+            {'RECIBE ' + (barberos.find(function(b) { return b.bid === regBid; }) || {}).nombre}
           </Text>
           <Text style={{ fontSize: 40, color: COLORS.ok, fontWeight: '500' }}>{'$' + fmt(bb)}</Text>
           <Text style={{ fontSize: 13, color: COLORS.text3, marginTop: 4 }}>
@@ -444,7 +447,7 @@ export default function AdminScreen({ onLogout }) {
         {/* Accesos rápidos */}
         <Text style={[s.secLbl, { marginTop: 20 }]}>ACCIONES RÁPIDAS</Text>
         <View style={s.accionGrid}>
-          {BARBEROS.map(b => (
+          {barberos.map(b => (
             <TouchableOpacity key={b.bid} style={s.accionCard}
               onPress={() => { setMsgBid(b.bid); setModalMsg(true); }}>
               <View style={[s.accionAvatar, { backgroundColor: b.bg }]}>
@@ -469,7 +472,7 @@ export default function AdminScreen({ onLogout }) {
 
         {/* Resumen por barbero hoy */}
         <Text style={[s.secLbl, { marginTop: 24 }]}>PRODUCCIÓN HOY POR BARBERO</Text>
-        {BARBEROS.map(b => {
+        {barberos.map(b => {
           const regsB = (resumen?.registros_hoy || []).filter(r => r.bid === b.bid);
           const svcB  = resumen?.barberos_hoy?.[b.bid]?.svc || 0;
           const bbB   = resumen?.barberos_hoy?.[b.bid]?.bb  || 0;
@@ -579,7 +582,7 @@ export default function AdminScreen({ onLogout }) {
         <Text style={{ fontSize: 13, color: COLORS.text3, marginBottom: 16 }}>
           El mensaje llega como notificación push y queda en el historial de la app.
         </Text>
-        {BARBEROS.map(b => (
+        {barberos.map(b => (
           <TouchableOpacity key={b.bid} style={s.msgBarberoBtn}
             onPress={() => { setMsgBid(b.bid); setModalMsg(true); }}>
             <View style={[s.accionAvatar, { backgroundColor: b.bg, width: 44, height: 44, borderRadius: 22 }]}>
@@ -609,7 +612,7 @@ export default function AdminScreen({ onLogout }) {
 
         {/* KPIs por barbero */}
         <Text style={[s.secLbl,{marginTop:8}]}>KPIs POR BARBERO</Text>
-        {BARBEROS.map(b => {
+        {barberos.map(b => {
           const k = tendData.kpisBarbero[b.bid]||{svc:0,fact:0,bb:0,servicios:{}};
           const tk = k.svc>0?Math.round(k.fact/k.svc):0;
           const topSvc = Object.entries(k.servicios).sort((a,c)=>c[1]-a[1]).slice(0,3);
@@ -706,7 +709,7 @@ export default function AdminScreen({ onLogout }) {
     <ScrollView>
       <View style={s.content}>
         <Text style={s.secLbl}>PERFILES Y AVATARES</Text>
-        {BARBEROS.map(b => (
+        {barberos.map(b => (
           <View key={b.bid} style={s.barberoPerfil}>
             <View style={{ position: 'relative' }}>
               <View style={[s.accionAvatar, {
@@ -779,7 +782,7 @@ export default function AdminScreen({ onLogout }) {
   );
 
   // ── MODAL MENSAJE ────────────────────────────────────────────
-  const b = BARBEROS.find(x => x.bid === msgBid);
+  const b = barberos.find(x => x.bid === msgBid);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>

@@ -25,7 +25,7 @@ export const API_URL = 'https://barberpilot-api-production.up.railway.app';
 export const IS_STAGING = false;
 
 // ─── BARBEROS ─────────────────────────────────────────────────
-export const BARBEROS = [
+export const BARBEROS_FALLBACK = [
   { bid: 'b1', nombre: 'Didian',  iniciales: 'DI', color: '#c9a84c', letra: 'D',  bg: 'rgba(201,168,76,.18)', rol: 'barbero' },
   { bid: 'b2', nombre: 'Emerson', iniciales: 'EM', color: '#4db87a', letra: 'E',  bg: 'rgba(77,184,122,.15)', rol: 'barbero' },
   { bid: 'b3', nombre: 'Samuel',  iniciales: 'SA', color: '#5580d4', letra: 'S',  bg: 'rgba(85,128,212,.15)', rol: 'barbero' },
@@ -43,7 +43,7 @@ export const SOCIOS = [
     letra: '👁', bg: 'rgba(85,128,212,.15)', rol: 'socio' },
 ];
 
-export const TODOS_PERFILES = [ADMIN, ...BARBEROS, ...SOCIOS];
+export const TODOS_PERFILES = [ADMIN, ...BARBEROS_FALLBACK, ...SOCIOS];
 
 // ─── SERVICIOS ────────────────────────────────────────────────
 export const SERVICIOS = [

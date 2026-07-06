@@ -13,6 +13,7 @@ const METAS_NEGOCIO = {
   '2027-04': 21500000,
 };
 
+// TODO: replace hardcoded 4 with dynamic barber count from useBarberos() or GET /barberos
 const NUM_BARBEROS = 4;
 
 function getDiasHabilesDelMes(año, mes) {
