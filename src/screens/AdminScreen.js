@@ -12,8 +12,16 @@ import { useBarberos } from '../hooks/useBarberos';
 import { api } from '../services/api';
 const { width } = Dimensions.get('window');
 
+function minsHasta(hora) {
+  if (!hora) return null;
+  const [h, m] = hora.split(':').map(Number);
+  const now = new Date();
+  return (h * 60 + m) - (now.getHours() * 60 + now.getMinutes());
+}
+
 const TABS_ADMIN = [
   { id: 'resumen',    label: 'Resumen',   icon: '📊' },
+  { id: 'agenda',     label: 'Agenda',    icon: '📅' },
   { id: 'registrar',  label: 'Registrar', icon: '➕' },
   { id: 'aprobar',    label: 'Aprobar',   icon: '✅' },
   { id: 'tendencias', label: 'Análisis',  icon: '🔥' },
@@ -52,7 +60,41 @@ export default function AdminScreen({ onLogout }) {
   // ── Avatares de barberos ──────────────────────────────────────
   const [avatarImgs, setAvatarImgs] = useState({});
 
+  // ── Agenda ───────────────────────────────────────────────────
+  const [agendaHoy,   setAgendaHoy]   = useState({});
+  const [agendaPend,  setAgendaPend]  = useState(new Set());
+  const [badgeAgenda, setBadgeAgenda] = useState(0);
+
   const { barberos } = useBarberos();
+
+  const cargarAgendaHoy = useCallback(async () => {
+    if (!barberos.length) return;
+    const fecha = hoy();
+    const results = await Promise.all(
+      barberos.map(b =>
+        api.agenda(b.bid, fecha)
+          .then(d => ({ bid: b.bid, appts: (d.appointments || []).filter(a => a.estado !== 'cancelado') }))
+          .catch(() => ({ bid: b.bid, appts: [] }))
+      )
+    );
+    const map = {};
+    let proximas = 0;
+    results.forEach(({ bid, appts }) => {
+      map[bid] = appts;
+      appts.forEach(a => {
+        const m = minsHasta(a.hora_inicio);
+        if (m !== null && m >= 0 && m <= 30) proximas++;
+      });
+    });
+    setAgendaHoy(map);
+    setBadgeAgenda(proximas);
+  }, [barberos]);
+
+  useEffect(() => {
+    cargarAgendaHoy();
+    const t = setInterval(cargarAgendaHoy, 30000);
+    return () => clearInterval(t);
+  }, [cargarAgendaHoy]);
 
   const cargarTendencias = async () => {
     try {
@@ -183,6 +225,25 @@ export default function AdminScreen({ onLogout }) {
       Alert.alert('✓ Enviado', `Mensaje enviado a ${b?.nombre}`);
     } catch { Alert.alert('Error', 'No se pudo enviar'); }
     setEnviando(false);
+  };
+
+  const handlePasarAColaAdmin = async (cita, barb) => {
+    const key = 'apt_' + cita.id;
+    setAgendaPend(p => new Set([...p, key]));
+    try {
+      await api.post('/queue/checkin', {
+        client_name: cita.client_name,
+        phone:       cita.client_phone || null,
+        barber_id:   barb.nombre.toLowerCase(),
+        service:     cita.svc_nom,
+        drink:       null,
+      });
+      await cargarAgendaHoy();
+    } catch (e) {
+      Alert.alert('Error', e.message || 'No se pudo agregar a la cola.');
+    } finally {
+      setAgendaPend(p => { const n = new Set(p); n.delete(key); return n; });
+    }
   };
 
   const verPerfilBarbero = async (b) => {
@@ -781,13 +842,81 @@ export default function AdminScreen({ onLogout }) {
     </ScrollView>
   );
 
+  const renderAgenda = () => {
+    const todasCitas = barberos.flatMap(b =>
+      (agendaHoy[b.bid] || []).map(a => ({ ...a, _barb: b }))
+    ).sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || ''));
+
+    const proximasCount = todasCitas.filter(a => {
+      const m = minsHasta(a.hora_inicio);
+      return m !== null && m >= 0 && m <= 30;
+    }).length;
+
+    return (
+      <ScrollView style={s.scroll}>
+        <View style={s.content}>
+          {proximasCount > 0 && (
+            <View style={s.agAlerta}>
+              <Text style={s.agAlertaTxt}>
+                🔔 {proximasCount} cita{proximasCount > 1 ? 's' : ''} en los próximos 30 min
+              </Text>
+            </View>
+          )}
+          {todasCitas.length === 0 && (
+            <View style={s.empty}>
+              <Text style={s.emptyTxt}>Sin citas agendadas hoy</Text>
+            </View>
+          )}
+          {todasCitas.map(cita => {
+            const b     = cita._barb;
+            const m     = minsHasta(cita.hora_inicio);
+            const key   = 'apt_' + cita.id;
+            const isPend  = agendaPend.has(key);
+            const horaStr = cita.hora_inicio?.slice(0, 5) || '—';
+            const esProx  = m !== null && m >= 0 && m <= 30;
+            const minsLbl = m === null ? '' : m <= 0 ? ' · ahora' : m < 60 ? ` · en ${m} min` : '';
+            return (
+              <View key={key} style={[s.agCard, esProx && s.agCardProx]}>
+                <View style={s.agCardHead}>
+                  <View style={s.agHoraBox}>
+                    <Text style={s.agHoraTxt}>{horaStr}</Text>
+                  </View>
+                  {esProx && (
+                    <View style={s.agProxBadge}>
+                      <Text style={s.agProxTxt}>🔔{minsLbl}</Text>
+                    </View>
+                  )}
+                  <View style={[s.agBarbChip, { backgroundColor: b.bg }]}>
+                    <Text style={[s.agBarbTxt, { color: b.color }]}>{b.nombre}</Text>
+                  </View>
+                </View>
+                <Text style={s.agNom}>{cita.client_name}</Text>
+                <Text style={s.agSvc}>{cita.svc_nom}</Text>
+                {cita.client_phone ? <Text style={s.agPhone}>📱 {cita.client_phone}</Text> : null}
+                <TouchableOpacity
+                  style={[s.agBtnCola, isPend && { opacity: 0.4 }]}
+                  onPress={() => handlePasarAColaAdmin(cita, b)}
+                  disabled={isPend}
+                >
+                  <Text style={s.agBtnColaTxt}>
+                    {isPend ? 'Agregando…' : '↓  Cliente llegó · Pasar a cola'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    );
+  };
+
   // ── MODAL MENSAJE ────────────────────────────────────────────
   const b = barberos.find(x => x.bid === msgBid);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* Nav tabs admin */}
-      <View style={s.adminTabs}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.adminTabsOuter} contentContainerStyle={s.adminTabs}>
         {TABS_ADMIN.map(t => (
           <TouchableOpacity key={t.id} style={[s.adminTab, tab === t.id && s.adminTabOn]}
             onPress={() => setTab(t.id)}>
@@ -797,18 +926,24 @@ export default function AdminScreen({ onLogout }) {
                 <Text style={s.badgeTxt}>{badgeAprob}</Text>
               </View>
             )}
+            {t.id === 'agenda' && badgeAgenda > 0 && (
+              <View style={[s.badge, { backgroundColor: COLORS.gold }]}>
+                <Text style={[s.badgeTxt, { color: COLORS.bg }]}>{badgeAgenda}</Text>
+              </View>
+            )}
             <Text style={[s.adminTabLbl, tab === t.id && { color: COLORS.gold }]}>
               {t.label}
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Contenido */}
       {loading ? (
         <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>
       ) : (
         tab === 'resumen'    ? renderResumen()    :
+        tab === 'agenda'     ? renderAgenda()     :
         tab === 'registrar'  ? renderRegistrar()  :
         tab === 'aprobar'    ? renderAprobar()    :
         tab === 'tendencias' ? renderTendAdmin()  :
@@ -942,9 +1077,9 @@ const s = StyleSheet.create({
   cardTitle:{ fontSize: 11, color: COLORS.text3, letterSpacing: 2,
     textTransform: 'uppercase', marginBottom: 14 },
 
-  adminTabs: { flexDirection: 'row', backgroundColor: COLORS.s1,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  adminTab:  { flex: 1, alignItems: 'center', paddingVertical: 10,
+  adminTabsOuter: { backgroundColor: COLORS.s1, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  adminTabs: { flexDirection: 'row', minWidth: '100%' },
+  adminTab:  { width: Math.floor(width / 7), alignItems: 'center', paddingVertical: 10,
     position: 'relative' },
   adminTabOn:{ borderBottomWidth: 2, borderBottomColor: COLORS.gold },
   adminTabIcon: { fontSize: 20 },
@@ -969,4 +1104,34 @@ const s = StyleSheet.create({
   input:     { backgroundColor: COLORS.s2, borderRadius: 10, borderWidth: 1,
     borderColor: COLORS.border2, color: COLORS.text, fontSize: 16, padding: 14 },
   scroll:    { flex: 1, backgroundColor: COLORS.bg },
+
+  // ── Agenda tab ───────────────────────────────────────────────
+  agAlerta:  { backgroundColor: 'rgba(201,168,76,.12)', borderRadius: 12, padding: 14,
+    marginBottom: 16, borderWidth: 1, borderColor: COLORS.gold3 },
+  agAlertaTxt: { color: COLORS.gold, fontSize: 14, fontWeight: '600' },
+
+  agCard:    { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
+    borderColor: COLORS.border, padding: 14, marginBottom: 10 },
+  agCardProx:{ borderColor: COLORS.gold3, backgroundColor: 'rgba(201,168,76,.04)' },
+
+  agCardHead:{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
+  agHoraBox: { width: 52, height: 34, borderRadius: 10, backgroundColor: 'rgba(85,128,212,.12)',
+    alignItems: 'center', justifyContent: 'center' },
+  agHoraTxt: { fontSize: 13, color: COLORS.blue, fontWeight: '700', letterSpacing: 0.3 },
+
+  agProxBadge: { backgroundColor: 'rgba(201,168,76,.14)', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.gold3 },
+  agProxTxt:   { fontSize: 10, color: COLORS.gold, fontWeight: '700', letterSpacing: 0.5 },
+
+  agBarbChip:{ marginLeft: 'auto', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  agBarbTxt: { fontSize: 11, fontWeight: '700' },
+
+  agNom:  { fontSize: 17, color: COLORS.text, fontWeight: '600', marginBottom: 3 },
+  agSvc:  { fontSize: 13, color: COLORS.text2, marginBottom: 6 },
+  agPhone:{ fontSize: 12, color: COLORS.text3, marginBottom: 10 },
+
+  agBtnCola:    { backgroundColor: 'rgba(85,128,212,.1)', borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(85,128,212,.3)', marginTop: 2 },
+  agBtnColaTxt: { fontSize: 15, color: COLORS.blue, fontWeight: '600', letterSpacing: 0.2 },
 });
