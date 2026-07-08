@@ -93,9 +93,8 @@ export default function LoginScreen({ onLogin }) {
         disableDeviceFallback: false,
       });
       if (result.success) {
-        await guardarSesion(p);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onLogin(p);
+        onLogin({ perfil: p });
       } else if (result.error === 'user_fallback') {
         // Usuario quiere usar PIN
         setStep('pin');

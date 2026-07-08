@@ -39,7 +39,7 @@ export const ADMIN = {
 };
 
 export const SOCIOS = [
-  { bid: 'socio1', nombre: 'Socio', pin: '1111', color: '#5580d4',
+  { bid: 'socio', nombre: 'Socios', color: '#5580d4',
     letra: '👁', bg: 'rgba(85,128,212,.15)', rol: 'socio' },
 ];
 

@@ -18,7 +18,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-import { API_URL, IS_STAGING, COLORS, BARBEROS } from './src/constants';
+import { API_URL, IS_STAGING, COLORS, BARBEROS_FALLBACK } from './src/constants';
 import LoginScreen       from './src/screens/LoginScreen';
 import SetupPinScreen    from './src/screens/SetupPinScreen';
 import HoyScreen         from './src/screens/HoyScreen';
@@ -159,7 +159,7 @@ export default function App() {
           });
           const json = await res.json();
           if (res.ok && json.ok) {
-            const perfil = BARBEROS.find(b => b.bid === json.bid) || {
+            const perfil = BARBEROS_FALLBACK.find(b => b.bid === json.bid) || {
               bid: json.bid, nombre: json.bnom, rol: json.role,
               color: COLORS.gold, letra: json.bnom?.[0] || '?',
               bg: 'rgba(201,168,76,.18)',
