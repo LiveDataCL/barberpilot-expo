@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, AppState,
 } from 'react-native';
-import { API_URL, COLORS, FONTS, fmt, fmtM, mesPeriodo } from '../constants';
+import { API_URL, COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 
 const PERIODOS = [
@@ -384,38 +384,38 @@ const s = StyleSheet.create({
   socioBadge:    { backgroundColor: 'rgba(85,128,212,.1)', borderRadius: 10,
     borderWidth: 1, borderColor: 'rgba(85,128,212,.3)',
     padding: 10, alignItems: 'center', marginBottom: 16 },
-  socioBadgeTxt: { fontSize: 10, color: COLORS.blue, fontFamily: 'DMSans_700Bold',
+  socioBadgeTxt: { fontSize: 10, color: COLORS.blue, fontFamily: 'Montserrat_700Bold',
     letterSpacing: 2.5, textTransform: 'uppercase' },
 
   proyCard:  { backgroundColor: 'rgba(201,168,76,.08)', borderRadius: 16,
     borderWidth: 1, borderColor: 'rgba(201,168,76,.25)',
     padding: 24, alignItems: 'center', marginBottom: 16 },
   proyLbl:   { fontSize: 10, color: COLORS.gold, letterSpacing: 3,
-    textTransform: 'uppercase', marginBottom: 8, fontFamily: 'DMSans_400Regular' },
-  proyVal:   { fontSize: 42, color: COLORS.gold, fontFamily: 'CormorantGaramond_300Light' },
-  proyActual:{ fontSize: 12, color: COLORS.text3, marginTop: 6, fontFamily: 'DMSans_400Regular' },
+    textTransform: 'uppercase', marginBottom: 8, fontFamily: 'Montserrat_400Regular' },
+  proyVal:   { fontSize: 42, color: COLORS.gold, fontFamily: 'Montserrat_700Bold', lineHeight: 50 },
+  proyActual:{ fontSize: 12, color: COLORS.text3, marginTop: 6, fontFamily: 'Montserrat_400Regular' },
 
   periodosRow: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
   periodoBtn:  { flex: 1, paddingVertical: 9, backgroundColor: COLORS.s2,
     borderRadius: 10, borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center', minWidth: 70 },
   periodoBtnOn:    { backgroundColor: 'rgba(201,168,76,.1)', borderColor: 'rgba(201,168,76,.6)' },
-  periodoBtnTxt:   { fontSize: 12, color: COLORS.text2, fontFamily: 'DMSans_400Regular' },
-  periodoBtnTxtOn: { color: COLORS.gold, fontFamily: 'DMSans_700Bold' },
+  periodoBtnTxt:   { fontSize: 12, color: COLORS.text2, fontFamily: 'Montserrat_400Regular' },
+  periodoBtnTxtOn: { color: COLORS.gold, fontFamily: 'Montserrat_700Bold' },
 
   grid2:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
   statCard: { flex: 1, minWidth: '45%', backgroundColor: COLORS.s2,
     borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 16 },
   statGreen:{ backgroundColor: 'rgba(77,184,122,.07)', borderColor: 'rgba(77,184,122,.2)' },
   statGold: { backgroundColor: 'rgba(201,168,76,.07)', borderColor: 'rgba(201,168,76,.2)' },
-  statVal:  { fontSize: 26, color: COLORS.text, fontFamily: 'CormorantGaramond_600SemiBold' },
+  statVal:  { fontSize: 26, color: COLORS.text, fontFamily: 'Montserrat_700Bold' },
   statLbl:  { fontSize: 10, color: COLORS.text3, marginTop: 4,
-    textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'DMSans_400Regular' },
+    textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'Montserrat_400Regular' },
 
   card:     { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.border, padding: 18, marginBottom: 14 },
   cardTitle:{ fontSize: 10, color: COLORS.text3, letterSpacing: 3,
-    textTransform: 'uppercase', marginBottom: 14, fontFamily: 'DMSans_500Medium' },
+    textTransform: 'uppercase', marginBottom: 14, fontFamily: 'Montserrat_500Medium' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.75)',
     justifyContent: 'flex-end' },

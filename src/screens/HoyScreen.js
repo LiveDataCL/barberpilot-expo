@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   TouchableOpacity, ActivityIndicator,
 } from 'react-native';
-import { COLORS, FONTS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
+import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import MetaBanner from './MetaBanner';
 import { updateDayNotification } from '../services/DayNotification';
@@ -450,27 +450,28 @@ const s = StyleSheet.create({
   periodoBtn:{ paddingHorizontal:14, paddingVertical:8, backgroundColor:COLORS.s2,
     borderRadius:20, borderWidth:1, borderColor:COLORS.border },
   periodoBtnOn:{ backgroundColor:'rgba(201,168,76,.1)', borderColor:'rgba(201,168,76,.6)' },
-  periodoBtnTxt:{ fontSize:12, color:COLORS.text2, fontFamily:'DMSans_500Medium' },
-  periodoBtnTxtOn:{ color:COLORS.gold, fontFamily:'DMSans_700Bold' },
+  periodoBtnTxt:{ fontSize:12, color:COLORS.text2, fontFamily:'Montserrat_500Medium' },
+  periodoBtnTxtOn:{ color:COLORS.gold, fontFamily:'Montserrat_700Bold' },
 
   hero:      { alignItems:'center', paddingVertical:24 },
-  heroNum:   { fontSize:72, color:COLORS.ok, fontFamily:'CormorantGaramond_300Light', lineHeight:80 },
+  heroNum:   { fontSize:72, color:COLORS.ok, fontFamily:'Montserrat_700Bold', lineHeight:80 },
   heroLbl:   { fontSize:11, color:COLORS.text3, letterSpacing:3, textTransform:'uppercase',
-    fontFamily:'DMSans_400Regular' },
+    fontFamily:'Montserrat_400Regular' },
 
   grid2:     { flexDirection:'row', flexWrap:'wrap', gap:10, marginBottom:14 },
   statCard:  { flex:1, minWidth:'45%', backgroundColor:COLORS.s2, borderRadius:14,
     borderWidth:1, borderColor:COLORS.border, padding:16 },
   statGreen: { backgroundColor:'rgba(77,184,122,.07)', borderColor:'rgba(77,184,122,.2)' },
   statGold:  { backgroundColor:'rgba(201,168,76,.07)', borderColor:'rgba(201,168,76,.2)' },
-  statVal:   { fontSize:24, color:COLORS.text, fontFamily:'CormorantGaramond_600SemiBold' },
+  // 24pt not 26 — sits under the 72pt hero number, slightly smaller preserves visual hierarchy (intentional, not drift)
+  statVal:   { fontSize:24, color:COLORS.text, fontFamily:'Montserrat_700Bold' },
   statLbl:   { fontSize:10, color:COLORS.text3, marginTop:4,
-    textTransform:'uppercase', letterSpacing:1.2, fontFamily:'DMSans_400Regular' },
+    textTransform:'uppercase', letterSpacing:1.2, fontFamily:'Montserrat_400Regular' },
 
   card:      { backgroundColor:COLORS.s1, borderRadius:14, borderWidth:1,
     borderColor:COLORS.border, padding:18, marginBottom:14 },
   cardTitle: { fontSize:10, color:COLORS.text3, letterSpacing:3,
-    textTransform:'uppercase', marginBottom:14, fontFamily:'DMSans_500Medium' },
+    textTransform:'uppercase', marginBottom:14, fontFamily:'Montserrat_500Medium' },
 
   rowBetween:{ flexDirection:'row', justifyContent:'space-between',
     alignItems:'center', marginBottom:4 },

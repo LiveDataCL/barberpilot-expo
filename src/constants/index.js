@@ -61,14 +61,18 @@ export const SERVICIOS = [
   { id: 'custom', nom: 'Especial…',                         precio:  0    },
 ];
 
-// ─── FONTS ────────────────────────────────────────────────────
-export const FONTS = {
-  display:  'CormorantGaramond_300Light_Italic',
-  displayR: 'CormorantGaramond_400Regular',
-  displayM: 'CormorantGaramond_600SemiBold',
-  sans:     'DMSans_400Regular',
-  sansM:    'DMSans_500Medium',
-  sansB:    'DMSans_700Bold',
+// ─── TYPE TOKENS ──────────────────────────────────────────────
+export const TYPE = {
+  hero:     { fontFamily: 'Montserrat_700Bold',            fontSize: 72, lineHeight: 80 },
+  display:  { fontFamily: 'Montserrat_700Bold',            fontSize: 42, lineHeight: 50 },
+  sig:      { fontFamily: 'CormorantGaramond_600SemiBold', fontSize: 18 },
+  num:      { fontFamily: 'Montserrat_700Bold',            fontSize: 24 },
+  title:    { fontFamily: 'Montserrat_700Bold',            fontSize: 18 },
+  sub:      { fontFamily: 'Montserrat_500Medium',          fontSize: 14 },
+  body:     { fontFamily: 'Montserrat_400Regular',         fontSize: 14 },
+  label:    { fontFamily: 'Montserrat_500Medium',          fontSize: 11 },
+  navLabel: { fontFamily: 'Montserrat_500Medium',          fontSize: 10 },
+  caption:  { fontFamily: 'Montserrat_400Regular',         fontSize: 10 },
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────

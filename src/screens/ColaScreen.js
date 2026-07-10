@@ -485,7 +485,7 @@ const s = StyleSheet.create({
 
   // Sala header
   salaHeader: { marginBottom: 12, gap: 6 },
-  sectionLabel: { fontSize: 11, color: COLORS.text3, letterSpacing: 2.5, textTransform: 'uppercase' },
+  sectionLabel: { fontSize: 11, color: COLORS.text3, letterSpacing: 2.5, textTransform: 'uppercase', fontFamily: 'Montserrat_500Medium' },
   salaLegend:  { flexDirection: 'row', gap: 8 },
   legendChip:  { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot:   { width: 7, height: 7, borderRadius: 4 },
@@ -553,6 +553,6 @@ const s = StyleSheet.create({
   // Stats footer
   statsRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
   statCard: { flex: 1, backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 16, alignItems: 'center' },
-  statVal:  { fontSize: 30, fontWeight: '300', marginBottom: 4 },
-  statLbl:  { fontSize: 9, color: COLORS.text3, letterSpacing: 2.5, textTransform: 'uppercase' },
+  statVal:  { fontSize: 26, fontFamily: 'Montserrat_700Bold', marginBottom: 4 },
+  statLbl:  { fontSize: 9, color: COLORS.text3, letterSpacing: 2.5, textTransform: 'uppercase', fontFamily: 'Montserrat_500Medium' },
 });

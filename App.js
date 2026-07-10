@@ -5,15 +5,13 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, Platform, ActivityIndi
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
 import { useFonts,
-  CormorantGaramond_300Light,
-  CormorantGaramond_300Light_Italic,
   CormorantGaramond_600SemiBold,
 } from '@expo-google-fonts/cormorant-garamond';
-import { useFonts as useFontsDM,
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans';
+import { useFonts as useFontsMontserrat,
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_700Bold,
+} from '@expo-google-fonts/montserrat';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
@@ -138,14 +136,12 @@ export default function App() {
   const [avatarImage,  setAvatarImage]  = useState(null);
 
   const [fontsLoaded] = useFonts({
-    CormorantGaramond_300Light,
-    CormorantGaramond_300Light_Italic,
     CormorantGaramond_600SemiBold,
   });
-  const [dmFontsLoaded] = useFontsDM({
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_700Bold,
+  const [montserratFontsLoaded] = useFontsMontserrat({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_700Bold,
   });
 
   // 3E — JWT session restore on mount
@@ -231,7 +227,7 @@ export default function App() {
     setAvatarEmoji(null);
   };
 
-  if (!fontsLoaded || !dmFontsLoaded || !authReady) {
+  if (!fontsLoaded || !montserratFontsLoaded || !authReady) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={COLORS.gold} size="small" />
@@ -381,7 +377,7 @@ export default function App() {
                 <TouchableOpacity key={t.id} style={s.navBtn}
                   onPress={() => setTab(t.id)} activeOpacity={0.7}>
                   {active && <View style={[s.navBar, { backgroundColor: usuario.color }]} />}
-                  <Feather name={t.icon} size={18} color={color} />
+                  <Feather name={t.icon} size={20} color={color} />
                   <Text style={[s.navLabel, active && { color: usuario.color }]}>
                     {t.label}
                   </Text>
@@ -404,11 +400,11 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
     borderWidth: 1, borderColor: 'rgba(201,168,76,.3)' },
   avatarImg:  { width: 38, height: 38, borderRadius: 19 },
-  avatarLetra:{ fontSize: 16, fontFamily: 'DMSans_700Bold' },
+  avatarLetra:{ fontSize: 16, fontFamily: 'Montserrat_700Bold' },
   hdrName:  { fontSize: 18, color: COLORS.text, fontFamily: 'CormorantGaramond_600SemiBold',
     letterSpacing: 0.5 },
-  hdrSub:   { fontSize: 9, color: COLORS.gold, letterSpacing: 3,
-    textTransform: 'uppercase', marginTop: 1, fontFamily: 'DMSans_400Regular' },
+  hdrSub:   { fontSize: 10, color: COLORS.gold, letterSpacing: 3,
+    textTransform: 'uppercase', marginTop: 1, fontFamily: 'Montserrat_400Regular' },
   logoutBtn:{ padding: 8 },
   logoutTxt:{ fontSize: 18, color: COLORS.text3 },
   nav:      { backgroundColor: '#0a0806', borderTopWidth: 1,
@@ -417,9 +413,9 @@ const s = StyleSheet.create({
     position: 'relative' },
   navBar:   { position: 'absolute', top: 0, left: '25%', right: '25%',
     height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
-  navLabel: { fontSize: 8, color: COLORS.text3, marginTop: 4,
-    letterSpacing: 0.8, textTransform: 'uppercase', fontFamily: 'DMSans_500Medium' },
+  navLabel: { fontSize: 10, color: COLORS.text3, marginTop: 4,
+    letterSpacing: 0.8, textTransform: 'uppercase', fontFamily: 'Montserrat_500Medium' },
   stagingBanner:    { backgroundColor: '#7c3aed', paddingVertical: 3, alignItems: 'center' },
-  stagingBannerTxt: { color: '#fff', fontSize: 10, fontFamily: 'DMSans_700Bold',
+  stagingBannerTxt: { color: '#fff', fontSize: 10, fontFamily: 'Montserrat_700Bold',
     letterSpacing: 1.5, textTransform: 'uppercase' },
 });

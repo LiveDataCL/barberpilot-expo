@@ -327,7 +327,7 @@ const s = StyleSheet.create({
   center:   { padding: 40, alignItems: 'center' },
 
   secLbl:   { fontSize: 11, color: COLORS.text3, letterSpacing: 2.5,
-    textTransform: 'uppercase', marginBottom: 10 },
+    textTransform: 'uppercase', marginBottom: 10, fontFamily: 'Montserrat_500Medium' },
   chips:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:     { paddingHorizontal: 14, paddingVertical: 9,
     backgroundColor: COLORS.s2, borderRadius: 20,
@@ -339,16 +339,17 @@ const s = StyleSheet.create({
   card:     { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.border, padding: 18, marginBottom: 14 },
   cardTitle:{ fontSize: 11, color: COLORS.text3, letterSpacing: 2.5,
-    textTransform: 'uppercase', marginBottom: 14 },
+    textTransform: 'uppercase', marginBottom: 14, fontFamily: 'Montserrat_500Medium' },
 
   grid2:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { flex: 1, minWidth: '45%', backgroundColor: COLORS.s2,
     borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 14 },
   statGreen:{ backgroundColor: 'rgba(77,184,122,.07)', borderColor: 'rgba(77,184,122,.2)' },
   statGold: { backgroundColor: 'rgba(201,168,76,.07)', borderColor: 'rgba(201,168,76,.2)' },
-  statVal:  { fontSize: 22, color: COLORS.text, fontWeight: '600' },
+  // 22pt not 26 — card padding is smaller here (14 vs 16/18 elsewhere), matches proportionally (intentional, not drift)
+  statVal:  { fontSize: 22, color: COLORS.text, fontFamily: 'Montserrat_700Bold' },
   statLbl:  { fontSize: 11, color: COLORS.text3, marginTop: 4,
-    textTransform: 'uppercase', letterSpacing: 1 },
+    textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Montserrat_400Regular' },
 
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 4 },
