@@ -47,7 +47,7 @@ export const TODOS_PERFILES = [ADMIN, ...BARBEROS_FALLBACK, ...SOCIOS];
 
 // ─── SERVICIOS ────────────────────────────────────────────────
 export const SERVICIOS = [
-  { id: 's01', nom: 'Corte clásico',                        precio: 13000 },
+  { id: 's01', nom: 'Corte clásico',                        precio: 12000 },
   { id: 's02', nom: 'Barba',                                precio: 10000 },
   { id: 's03', nom: 'Corte + Barba',                        precio: 20000 },
   { id: 's04', nom: 'Corte + Perfilado de barba',           precio: 16000 },
