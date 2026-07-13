@@ -4,7 +4,7 @@ import {
   TextInput, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, SERVICIOS, fmt, hoy } from '../constants';
+import { COLORS, SERVICIOS_FALLBACK, fmt, hoy } from '../constants';
 import { api } from '../services/api';
 
 const PAGOS = [
@@ -13,7 +13,7 @@ const PAGOS = [
   { id: 'transferencia', label: '📲 Transferencia', color: COLORS.gold, bg: 'rgba(201,168,76,.15)'  },
 ];
 
-export default function PaymentSheet({ visible, entry, barbero, onClose, onCompleted }) {
+export default function PaymentSheet({ visible, entry, barbero, onClose, onCompleted, catalogo }) {
   const [pago,         setPago]         = useState('efectivo');
   const [propina,      setPropina]      = useState('');
   const [manualPrecio, setManualPrecio] = useState('');
@@ -42,10 +42,18 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
   if (!entry) return null;
 
   // ── Price lookup ──────────────────────────────────────────────
+  // Live catalog when available; SERVICIOS_FALLBACK only as last resort.
+  const SERVICIOS = (catalogo?.servicios && catalogo.servicios.length > 0) ? catalogo.servicios : SERVICIOS_FALLBACK;
   const svc = SERVICIOS.find(s => s.nom.trim().toLowerCase() === (entry.service || '').trim().toLowerCase());
   const catalogPrecio = svc?.precio ?? null;
   const hasManual     = catalogPrecio === null;
   const servicePrecio = hasManual ? (parseInt(manualPrecio) || 0) : catalogPrecio;
+
+  // Same gating principle as RegistrarScreen: this screen also submits precio
+  // directly to POST /registros, so the race condition applies here too.
+  // Blocks only until the first fetch attempt since app launch resolves
+  // (success or failure) — never blocks once resolved, even on failure.
+  const preciosCargando = !catalogo || catalogo.cargando === true;
 
   // ── Live commission ───────────────────────────────────────────
   const com       = pago === 'debito' ? 0.43 : 0.50;
@@ -204,13 +212,20 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
 
               {/* CTA */}
               <TouchableOpacity
-                style={[s.ctaBtn, (loading || (hasManual && servicePrecio === 0)) && s.ctaBtnDisabled]}
+                style={[s.ctaBtn, (loading || preciosCargando || (hasManual && servicePrecio === 0)) && s.ctaBtnDisabled]}
                 onPress={handleCerrar}
-                disabled={loading || (hasManual && servicePrecio === 0)}
+                disabled={loading || preciosCargando || (hasManual && servicePrecio === 0)}
                 activeOpacity={0.85}
               >
-                {loading
-                  ? <ActivityIndicator color={COLORS.bg} />
+                {loading || preciosCargando
+                  ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator color={COLORS.bg} />
+                      {preciosCargando && !loading && (
+                        <Text style={s.ctaBtnTxt}>Actualizando precios…</Text>
+                      )}
+                    </View>
+                  )
                   : <Text style={s.ctaBtnTxt}>Cerrar servicio · ${fmt(total)}</Text>
                 }
               </TouchableOpacity>

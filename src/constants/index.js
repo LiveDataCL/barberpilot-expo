@@ -46,7 +46,13 @@ export const SOCIOS = [
 export const TODOS_PERFILES = [ADMIN, ...BARBEROS_FALLBACK, ...SOCIOS];
 
 // ─── SERVICIOS ────────────────────────────────────────────────
-export const SERVICIOS = [
+// Last-resort fallback — used only if no cached server response exists AND
+// GET /config/negocio also fails (e.g. first-ever launch, offline). Live data
+// comes from App.js's catalogo state, fetched from GET /config/negocio; see
+// mapServiciosDesdeServidor() in App.js. Note this fallback is missing s12
+// (Corte + Cejas), which only exists server-side — a real gap this cutover
+// fixes, not just a naming-drift cleanup.
+export const SERVICIOS_FALLBACK = [
   { id: 's01', nom: 'Corte clásico',                        precio: 12000 },
   { id: 's02', nom: 'Barba',                                precio: 10000 },
   { id: 's03', nom: 'Corte + Barba',                        precio: 20000 },

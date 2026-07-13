@@ -7,10 +7,10 @@ const ETIQUETA = { hoy: 'DÍA', semana: 'SEMANA', mes: 'MES' };
 
 const DEFAULT_TICKET = 12000;
 
-export default function MetaBanner({ periodo, svc, bb, avgTicket }) {
+export default function MetaBanner({ periodo, svc, bb, avgTicket, configNegocio }) {
   if (!['hoy', 'semana', 'mes'].includes(periodo)) return null;
 
-  const metaFact = getMetaBarbero(periodo);
+  const metaFact = getMetaBarbero(periodo, configNegocio);
   const metaSvc  = Math.max(1, Math.round(metaFact / (avgTicket || DEFAULT_TICKET)));
 
   const pctSvc  = Math.min(svc  / metaSvc  * 100, 100);

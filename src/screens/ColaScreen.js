@@ -53,7 +53,7 @@ async function openPostServiceWhatsApp(phone, name) {
 }
 
 // ── Pantalla principal ─────────────────────────────────────────
-export default function ColaScreen({ barbero }) {
+export default function ColaScreen({ barbero, catalogo }) {
   const barberId = queueId(barbero);
 
   const [queue,        setQueue]        = useState([]);
@@ -427,6 +427,7 @@ export default function ColaScreen({ barbero }) {
         visible={sheetVisible}
         entry={inService}
         barbero={barbero}
+        catalogo={catalogo}
         onClose={() => setSheetVisible(false)}
         onCompleted={() => {
           setSheetVisible(false);

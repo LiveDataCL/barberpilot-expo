@@ -7,7 +7,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
-import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS } from '../constants';
+import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from '../constants';
 import { useBarberos } from '../hooks/useBarberos';
 import { api } from '../services/api';
 const { width } = Dimensions.get('window');
@@ -29,7 +29,10 @@ const TABS_ADMIN = [
   { id: 'barberos',   label: 'Perfiles',  icon: '👤' },
 ];
 
-export default function AdminScreen({ onLogout }) {
+export default function AdminScreen({ onLogout, catalogo }) {
+  // Live catalog when available; SERVICIOS_FALLBACK only as last resort.
+  const SERVICIOS = (catalogo?.servicios && catalogo.servicios.length > 0) ? catalogo.servicios : SERVICIOS_FALLBACK;
+  const preciosCargando = !catalogo || catalogo.cargando === true;
   const [tab, setTab]             = useState('resumen');
   const [resumen, setResumen]     = useState(null);
   const [pendientes, setPendientes] = useState([]);
@@ -454,10 +457,18 @@ export default function AdminScreen({ onLogout }) {
         </View>
 
         <TouchableOpacity
-          style={{ backgroundColor: COLORS.gold, borderRadius: 14, padding: 18, alignItems: 'center' }}
-          onPress={registrarServicioAdmin} disabled={regEnviando}>
-          {regEnviando
-            ? <ActivityIndicator color={COLORS.bg} />
+          style={{ backgroundColor: COLORS.gold, borderRadius: 14, padding: 18, alignItems: 'center',
+            opacity: (regEnviando || preciosCargando) ? 0.55 : 1 }}
+          onPress={registrarServicioAdmin} disabled={regEnviando || preciosCargando}>
+          {regEnviando || preciosCargando
+            ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator color={COLORS.bg} />
+                {preciosCargando && !regEnviando && (
+                  <Text style={{ fontSize: 15, color: COLORS.bg, fontWeight: '700' }}>Actualizando precios…</Text>
+                )}
+              </View>
+            )
             : <Text style={{ fontSize: 17, color: COLORS.bg, fontWeight: '700' }}>Registrar servicio</Text>
           }
         </TouchableOpacity>

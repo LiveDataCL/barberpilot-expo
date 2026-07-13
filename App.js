@@ -32,6 +32,18 @@ import TendenciasScreen  from './src/screens/TendenciasScreen';
 import AvatarScreen      from './src/screens/AvatarScreen';
 import ColaScreen        from './src/screens/ColaScreen';
 
+// ─── CATÁLOGO/META: GET /config/negocio ────────────────────────
+// Mapea la respuesta del servidor al formato local {id, nom, precio} usado
+// por RegistrarScreen/PaymentSheet/AdminScreen, y agrega 'custom' (Especial…)
+// — una opción de UI local sin equivalente en el catálogo del servidor.
+function mapServiciosDesdeServidor(servicios) {
+  return [
+    ...servicios.map(s => ({ id: s.servicio_id, nom: s.nombre_canonico, precio: s.precio_activo })),
+    { id: 'custom', nom: 'Especial…', precio: 0 },
+  ];
+}
+const CATALOGO_CACHE_KEY = 'bp_catalogo_cache_v1';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -132,6 +144,16 @@ export default function App() {
   const [authReady,    setAuthReady]    = useState(false);
   const [tab,          setTab]          = useState('hoy');
   const [showAvatar,   setShowAvatar]   = useState(false);
+  // Catálogo de servicios + meta desde GET /config/negocio. cargando=true
+  // hasta que el PRIMER intento de fetch desde el lanzamiento de la app se
+  // resuelve (éxito o fracaso) — RegistrarScreen/PaymentSheet/AdminScreen
+  // bloquean su botón de envío mientras esto sea true. Una vez resuelto,
+  // el envío funciona igual aunque haya fallado (usando caché/fallback),
+  // acompañado del banner de desactualizado si error=true.
+  const [catalogo, setCatalogo] = useState({
+    servicios: null, meta: null, calendario: null,
+    cargando: true, cargado: false, error: false, actualizadoEn: null,
+  });
   const [avatarEmoji,  setAvatarEmoji]  = useState(null);
   const [avatarImage,  setAvatarImage]  = useState(null);
 
@@ -205,6 +227,67 @@ export default function App() {
           .then(em => { if (em) setAvatarEmoji(em); })
           .catch(() => {});
       });
+
+    // Catálogo de servicios + meta (GET /config/negocio) — una vez por login/
+    // lanzamiento de la app, no por cada visita a una pantalla, ya que este
+    // efecto solo corre cuando cambia la identidad de `usuario`. Requiere
+    // requirePanelOrBarberAuth en el backend — bp_auth_token (login de
+    // barbero) funciona igual que un JWT de panel_users.
+    // Stale-while-revalidate: usa caché local de inmediato para pintar rápido
+    // (sin bloquear el botón de envío), luego intenta refrescar desde el
+    // servidor. Solo la RESOLUCIÓN del fetch en vivo (éxito o fracaso) baja
+    // `cargando` a false — nunca el uso de caché por sí solo.
+    (async () => {
+      let usedCache = false;
+      try {
+        const cachedRaw = await SecureStore.getItemAsync(CATALOGO_CACHE_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (Array.isArray(cached.servicios) && cached.servicios.length > 0) {
+            setCatalogo(c => ({
+              ...c,
+              servicios: mapServiciosDesdeServidor(cached.servicios),
+              meta: cached.meta || null,
+              calendario: cached.calendario || null,
+              actualizadoEn: cached.fecha || null,
+            }));
+            usedCache = true;
+          }
+        }
+      } catch { /* caché corrupta — se ignora */ }
+
+      try {
+        const token = await SecureStore.getItemAsync('bp_auth_token');
+        if (!token) throw new Error('sin token');
+        // No ?tenant= query param: tenant_id is resolved server-side from the
+        // JWT claim only (see the 2026-07-13 cross-tenant fix) — a query
+        // string tenant override is intentionally ignored by the backend now,
+        // not just unnecessary here.
+        const res = await fetch(`${API_URL}/config/negocio`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data.ok || !Array.isArray(data.servicios) || data.servicios.length === 0) {
+          throw new Error('respuesta inesperada');
+        }
+        const nowIso = new Date().toISOString();
+        setCatalogo({
+          servicios: mapServiciosDesdeServidor(data.servicios),
+          meta: data.meta || null,
+          calendario: data.calendario || null,
+          cargando: false, cargado: true, error: false,
+          actualizadoEn: nowIso,
+        });
+        SecureStore.setItemAsync(CATALOGO_CACHE_KEY, JSON.stringify({
+          servicios: data.servicios, meta: data.meta, calendario: data.calendario, fecha: nowIso,
+        })).catch(() => {});
+      } catch (e) {
+        // Fetch resuelto (con error) — desbloquea el envío igual, usando
+        // caché/fallback, pero deja error=true para el banner visible.
+        setCatalogo(c => ({ ...c, cargando: false, cargado: c.cargado || usedCache, error: true }));
+      }
+    })();
   }, [usuario]);
 
   // Called by LoginScreen after successful /api/v2/auth/login
@@ -277,7 +360,7 @@ export default function App() {
                 <Text style={s.logoutTxt}>⇄</Text>
               </TouchableOpacity>
             </View>
-            <AdminScreen onLogout={logout} />
+            <AdminScreen onLogout={logout} catalogo={catalogo} />
           </SafeAreaView>
         </SafeAreaProvider>
       </GestureHandlerRootView>
@@ -313,15 +396,15 @@ export default function App() {
   // BARBERO
   const renderScreen = () => {
     switch (tab) {
-      case 'hoy':        return <HoyScreen        barbero={usuario} />;
-      case 'cola':       return <ColaScreen        barbero={usuario} />;
-      case 'registrar':  return <RegistrarScreen   barbero={usuario} />;
-      case 'mes':        return <MesScreen         barbero={usuario} />;
+      case 'hoy':        return <HoyScreen        barbero={usuario} catalogo={catalogo} />;
+      case 'cola':       return <ColaScreen        barbero={usuario} catalogo={catalogo} />;
+      case 'registrar':  return <RegistrarScreen   barbero={usuario} catalogo={catalogo} />;
+      case 'mes':        return <MesScreen         barbero={usuario} catalogo={catalogo} />;
       case 'tendencias': return <TendenciasScreen  barbero={usuario} />;
       case 'cobrar':     return <LiquidacionScreen barbero={usuario} />;
       case 'mensajes':   return <MensajesScreen    barbero={usuario} />;
       case 'config':     return <ConfigScreen      barbero={usuario} onLogout={logout} />;
-      default:           return <HoyScreen         barbero={usuario} />;
+      default:           return <HoyScreen         barbero={usuario} catalogo={catalogo} />;
     }
   };
 
@@ -352,6 +435,15 @@ export default function App() {
           {IS_STAGING && (
             <View style={s.stagingBanner}>
               <Text style={s.stagingBannerTxt}>STAGING — datos sinteticos</Text>
+            </View>
+          )}
+          {catalogo.error && (
+            <View style={s.staleBanner}>
+              <Text style={s.staleBannerTxt}>
+                {catalogo.actualizadoEn
+                  ? '⚠ Precios desactualizados desde ' + new Date(catalogo.actualizadoEn).toLocaleString('es-CL') + ' — sin conexión al servidor'
+                  : '⚠ Precios desactualizados — sin conexión al servidor todavía'}
+              </Text>
             </View>
           )}
           <View style={{ flex: 1 }}>{renderScreen()}</View>
@@ -418,4 +510,7 @@ const s = StyleSheet.create({
   stagingBanner:    { backgroundColor: '#7c3aed', paddingVertical: 3, alignItems: 'center' },
   stagingBannerTxt: { color: '#fff', fontSize: 10, fontFamily: 'Montserrat_700Bold',
     letterSpacing: 1.5, textTransform: 'uppercase' },
+  staleBanner:      { backgroundColor: '#7a5f20', paddingVertical: 5, paddingHorizontal: 12, alignItems: 'center' },
+  staleBannerTxt:   { color: '#f0ebe0', fontSize: 11, fontFamily: 'Montserrat_500Medium',
+    textAlign: 'center' },
 });

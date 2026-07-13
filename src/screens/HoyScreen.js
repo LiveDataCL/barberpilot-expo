@@ -89,7 +89,7 @@ async function cargarRegistrosPeriodo(bid, periodo) {
   return regs;
 }
 
-export default function HoyScreen({ barbero }) {
+export default function HoyScreen({ barbero, catalogo }) {
   const [periodo,       setPeriodo]      = useState('hoy');
   const [regs,          setRegs]         = useState([]);
   const [loading,       setLoading]      = useState(true);
@@ -268,7 +268,7 @@ export default function HoyScreen({ barbero }) {
         <>
           {/* Banner de meta */}
           {['hoy', 'semana', 'mes'].includes(periodo) && (
-            <MetaBanner periodo={periodo} svc={n} bb={bb} avgTicket={avgTicket} />
+            <MetaBanner periodo={periodo} svc={n} bb={bb} avgTicket={avgTicket} configNegocio={catalogo} />
           )}
 
           {/* Hero */}

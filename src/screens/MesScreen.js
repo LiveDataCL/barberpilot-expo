@@ -6,7 +6,7 @@ import { COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import { api } from '../services/api';
 import { getMetaBarbero } from '../services/metas';
 
-export default function MesScreen({ barbero }) {
+export default function MesScreen({ barbero, catalogo }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,7 +34,7 @@ export default function MesScreen({ barbero }) {
   const ups  = data?.upselling   || 0;
   const regs = data?.registros   || [];
 
-  const META     = getMetaBarbero('mes');
+  const META     = getMetaBarbero('mes', catalogo);
   const avgTk    = tk || 13000;
   const metaSvc  = Math.max(1, Math.round(META / avgTk));
   const pct      = Math.min(100, Math.round(bb / META * 100));

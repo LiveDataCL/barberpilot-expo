@@ -6,7 +6,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { API_URL, COLORS, SERVICIOS, fmt, hoy } from '../constants';
+import { API_URL, COLORS, SERVICIOS_FALLBACK, fmt, hoy } from '../constants';
 import { api } from '../services/api';
 import { updateDayNotification } from '../services/DayNotification';
 
@@ -18,7 +18,7 @@ const PAGOS = [
   { id: 'transferencia', label: '📲 Transferencia',   color: COLORS.gold, bg: 'rgba(201,168,76,.15)'  },
 ];
 
-export default function RegistrarScreen({ barbero }) {
+export default function RegistrarScreen({ barbero, catalogo }) {
   const [sid, setSid]               = useState('s01');
   const [precioLibre, setPrecioLibre] = useState('');
   const [nombreCustom, setNombreCustom] = useState('');
@@ -37,8 +37,22 @@ export default function RegistrarScreen({ barbero }) {
   const [cliBuscando, setCliBuscando] = useState(false);
   const [cliEncontrado, setCliEncontrado] = useState(false);
 
+  // Live catalog from GET /config/negocio when available; SERVICIOS_FALLBACK
+  // (hardcoded, missing s12 Corte+Cejas) only as last resort — see App.js's
+  // catalogo state. 'custom' (Especial…) has no server equivalent; it's a
+  // local-only UI affordance, always appended by App.js's mapping.
+  const SERVICIOS = (catalogo?.servicios && catalogo.servicios.length > 0) ? catalogo.servicios : SERVICIOS_FALLBACK;
   const svc    = SERVICIOS.find((s) => s.id === sid) || SERVICIOS[0];
   const precio = svc.id === 'custom' ? (parseInt(precioLibre) || 0) : svc.precio;
+
+  // Gate the submit button on at least one resolved fetch attempt (success OR
+  // failure) since app launch — not per screen mount, since the barber could
+  // navigate back to this screen repeatedly in one session. Once resolved
+  // (even on failure, using cached/fallback data), submission is allowed —
+  // never block a real transaction just because the price refresh failed.
+  // The App.js-level staleness banner already tells the barber if the price
+  // shown might not be current; this screen doesn't duplicate that indicator.
+  const preciosCargando = !catalogo || catalogo.cargando === true;
   const com    = pago === 'debito' ? 0.43 : 0.5;
   const bb     = Math.round(precio * com) + (parseInt(propina) || 0);
   const neg    = precio - Math.round(precio * com);
@@ -354,9 +368,21 @@ export default function RegistrarScreen({ barbero }) {
       </View>
 
       {/* BOTÓN ENVIAR */}
-      <TouchableOpacity style={s.btnEnviar} onPress={enviar} disabled={enviando} activeOpacity={0.8}>
-        {enviando
-          ? <ActivityIndicator color={COLORS.bg} />
+      <TouchableOpacity
+        style={[s.btnEnviar, preciosCargando && s.btnEnviarDisabled]}
+        onPress={enviar}
+        disabled={enviando || preciosCargando}
+        activeOpacity={0.8}
+      >
+        {enviando || preciosCargando
+          ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator color={COLORS.bg} />
+              {preciosCargando && !enviando && (
+                <Text style={s.btnEnviarTxt}>Actualizando precios…</Text>
+              )}
+            </View>
+          )
           : <Text style={s.btnEnviarTxt}>✓  Enviar para aprobación</Text>
         }
       </TouchableOpacity>
@@ -418,6 +444,7 @@ const s = StyleSheet.create({
 
   btnEnviar: { backgroundColor: COLORS.gold, borderRadius: 14,
     padding: 18, alignItems: 'center', marginTop: 22 },
+  btnEnviarDisabled: { opacity: 0.55 },
   btnEnviarTxt: { fontSize: 18, color: COLORS.bg, fontWeight: '700', letterSpacing: 1 },
 
   crmCard:   { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
