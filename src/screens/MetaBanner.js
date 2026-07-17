@@ -5,7 +5,7 @@ import { getMetaBarbero } from '../services/metas';
 
 const ETIQUETA = { hoy: 'DÍA', semana: 'SEMANA', mes: 'MES' };
 
-const DEFAULT_TICKET = 12000;
+const DEFAULT_TICKET = 13000;
 
 export default function MetaBanner({ periodo, svc, bb, avgTicket, configNegocio }) {
   if (!['hoy', 'semana', 'mes'].includes(periodo)) return null;

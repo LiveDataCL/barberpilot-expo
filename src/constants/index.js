@@ -53,9 +53,9 @@ export const TODOS_PERFILES = [ADMIN, ...BARBEROS_FALLBACK, ...SOCIOS];
 // (Corte + Cejas), which only exists server-side — a real gap this cutover
 // fixes, not just a naming-drift cleanup.
 export const SERVICIOS_FALLBACK = [
-  { id: 's01', nom: 'Corte clásico',                        precio: 12000 },
+  { id: 's01', nom: 'Corte clásico',                        precio: 13000 },
   { id: 's02', nom: 'Barba',                                precio: 10000 },
-  { id: 's03', nom: 'Corte + Barba',                        precio: 20000 },
+  { id: 's03', nom: 'Corte + Barba',                        precio: 22000 },
   { id: 's04', nom: 'Corte + Perfilado de barba',           precio: 16000 },
   { id: 's05', nom: 'Perfilado de corte',                   precio:  6000 },
   { id: 's06', nom: 'Perfilado de cejas',                   precio:  4000 },
@@ -63,7 +63,6 @@ export const SERVICIOS_FALLBACK = [
   { id: 's08', nom: 'Perfilado de barba',                   precio:  6000 },
   { id: 's09', nom: 'Matizado ganas de cabello',            precio:  8000 },
   { id: 's10', nom: 'Matizado ganas de barba',              precio:  5000 },
-  { id: 's11', nom: 'Corte Express + Perfilado de barba',   precio: 15000 },
   { id: 'custom', nom: 'Especial…',                         precio:  0    },
 ];
 
