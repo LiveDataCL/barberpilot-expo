@@ -28,8 +28,8 @@ export const IS_STAGING = false;
 export const BARBEROS_FALLBACK = [
   { bid: 'b1', nombre: 'Didian',  iniciales: 'DI', color: '#c9a84c', letra: 'D',  bg: 'rgba(201,168,76,.18)', rol: 'barbero' },
   { bid: 'b2', nombre: 'Emerson', iniciales: 'EM', color: '#4db87a', letra: 'E',  bg: 'rgba(77,184,122,.15)', rol: 'barbero' },
-  { bid: 'b3', nombre: 'Samuel',  iniciales: 'SA', color: '#5580d4', letra: 'S',  bg: 'rgba(85,128,212,.15)', rol: 'barbero' },
   { bid: 'b5', nombre: 'Steven',  iniciales: 'ST', color: '#e05555', letra: 'S',  bg: 'rgba(224,85,85,.15)',  rol: 'barbero' },
+  { bid: 'b6', nombre: 'Winder',  iniciales: 'WI', color: '#9b5de5', letra: 'W',  bg: 'rgba(155,93,229,.15)', rol: 'barbero' },
 ];
 
 export const ADMIN = {
