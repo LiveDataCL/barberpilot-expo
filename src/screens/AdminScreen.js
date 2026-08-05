@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, TextInput, Alert,
@@ -19,10 +19,25 @@ function minsHasta(hora) {
   return (h * 60 + m) - (now.getHours() * 60 + now.getMinutes());
 }
 
+// Same phrasing/thresholds as saulfino-web/checkin.html's inline last-visit
+// formatter (lookupPhone()) — kept identical on purpose so staff see the
+// same wording here as clients see on the public check-in page.
+function formatUltimaVisitaRelativa(fechaStr) {
+  if (!fechaStr) return null;
+  const d = new Date(fechaStr), now = new Date();
+  const days = Math.floor((now - d) / 86400000);
+  return days === 0 ? 'hoy'
+    : days === 1 ? 'ayer'
+    : days < 7 ? 'hace ' + days + ' días'
+    : days < 30 ? 'hace ' + Math.floor(days / 7) + 'sem.'
+    : 'hace ' + Math.floor(days / 30) + 'mes';
+}
+
 const TABS_ADMIN = [
   { id: 'resumen',    label: 'Resumen',   icon: '📊' },
   { id: 'agenda',     label: 'Agenda',    icon: '📅' },
   { id: 'registrar',  label: 'Registrar', icon: '➕' },
+  { id: 'recepcion',  label: 'Recepción', icon: '🛎️' },
   { id: 'aprobar',    label: 'Aprobar',   icon: '✅' },
   { id: 'tendencias', label: 'Análisis',  icon: '🔥' },
   { id: 'mensajes',   label: 'Mensajes',  icon: '💬' },
@@ -67,6 +82,18 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const [agendaHoy,   setAgendaHoy]   = useState({});
   const [agendaPend,  setAgendaPend]  = useState(new Set());
   const [badgeAgenda, setBadgeAgenda] = useState(0);
+
+  // ── Recepción (walk-in check-in) ──────────────────────────────
+  const [recTel,          setRecTel]          = useState('');
+  const [recNombre,       setRecNombre]       = useState('');
+  const [recBuscando,     setRecBuscando]     = useState(false);
+  const [recUltimaVisita, setRecUltimaVisita] = useState(null);
+  const [recBid,          setRecBid]          = useState(null);
+  const [recSvcNom,       setRecSvcNom]       = useState(null);
+  const [recBebida,       setRecBebida]       = useState('');
+  const [recEnviando,     setRecEnviando]     = useState(false);
+  const [recResultado,    setRecResultado]    = useState(null);
+  const recLookupTimer = useRef(null);
 
   const { barberos } = useBarberos();
 
@@ -331,6 +358,82 @@ export default function AdminScreen({ onLogout, catalogo }) {
     setRegEnviando(false);
   };
 
+  // ── Recepción: buscar cliente por teléfono (debounced, público) ──────────
+  const buscarTelRecepcion = (tel) => {
+    setRecTel(tel);
+    setRecUltimaVisita(null);
+    if (recLookupTimer.current) clearTimeout(recLookupTimer.current);
+    if (!tel || tel.length < 8) { setRecBuscando(false); return; }
+    recLookupTimer.current = setTimeout(async () => {
+      setRecBuscando(true);
+      try {
+        const r = await fetch(`${API_URL}/clientes/lookup?phone=${encodeURIComponent(tel)}`).then(x => x.json());
+        if (r.ok && r.found && r.cliente) {
+          setRecNombre(r.cliente.nombre || '');
+          // ultima_visita here comes from cliente.ultima_visita (a raw
+          // Postgres date, parseable directly by new Date() — same field
+          // saulfino-web/checkin.html itself uses for this exact relative-
+          // time phrase), not from ultimos_servicios[0].fecha_display, which
+          // is pre-formatted DD/MM/YYYY text and not safe to re-parse with
+          // new Date().
+          setRecUltimaVisita({
+            relativo: formatUltimaVisitaRelativa(r.cliente.ultima_visita),
+            barbero:  r.ultimo_barbero || null,
+            bebida:   r.ultima_bebida || null,
+            visitas:  r.cliente.visitas || 0,
+          });
+        }
+      } catch {}
+      setRecBuscando(false);
+    }, 300);
+  };
+
+  // ── Recepción: registrar + iniciar (POST /queue/control/checkin) ─────────
+  const registrarRecepcion = async () => {
+    if (!recNombre.trim()) { Alert.alert('Falta el nombre'); return; }
+    if (!recBid) { Alert.alert('Elige un barbero'); return; }
+    if (!recSvcNom) { Alert.alert('Elige un servicio'); return; }
+    setRecEnviando(true);
+    try {
+      const body = {
+        client_name: recNombre.trim(),
+        phone: recTel.trim() || null,
+        bid: recBid,
+        // Sent verbatim — matched against the servicios catalog server-side
+        // by exact string. Never transform/abbreviate/retype this value,
+        // it would silently break that downstream match and any duration
+        // analytics keyed off the exact service name.
+        service: recSvcNom,
+        bebida: recBebida.trim() || null,
+        bebida_es_otro: !!recBebida.trim(),
+      };
+      const res = await fetch(`${API_URL}/queue/control/checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(r => r.json());
+      if (!res.ok) {
+        Alert.alert('Error', res.error || 'No se pudo registrar');
+        setRecEnviando(false);
+        return;
+      }
+      setRecResultado({
+        nombre: recNombre.trim(),
+        status: res.status,
+        resolvedBarberId: res.resolved_barber_id,
+        resolvedBarberName: res.resolved_barber_name,
+        queuePosition: res.queue_position,
+        esperaMin: res.estimated_wait_min,
+      });
+      setRecTel(''); setRecNombre(''); setRecBid(null); setRecSvcNom(null); setRecBebida('');
+      setRecUltimaVisita(null);
+      setTimeout(() => setRecResultado(null), 2500);
+    } catch (e) {
+      Alert.alert('Error de conexión', e.message || '');
+    }
+    setRecEnviando(false);
+  };
+
   const sendPushToBarber = async (bid, title, body) => {
     try {
       await fetch(`${API_URL}/push/test`, {
@@ -476,6 +579,133 @@ export default function AdminScreen({ onLogout, catalogo }) {
     );
   };
 
+  const renderRecepcion = () => {
+    if (recResultado) {
+      const r = recResultado;
+      let titulo, detalle;
+      if (r.status === 'IN_SERVICE') {
+        // Unambiguous: this client is already in the chair, not waiting.
+        titulo = 'Servicio iniciado con ' + (r.resolvedBarberName || '');
+        detalle = r.nombre;
+      } else if (r.resolvedBarberId === 'pool') {
+        titulo = 'Sin barberos disponibles ahora';
+        detalle = 'Cliente en cola, se asignará al primero libre';
+      } else {
+        titulo = 'En cola';
+        detalle = 'Posición #' + r.queuePosition + ', esperando a ' + (r.resolvedBarberName || '') + ' · ~' + r.esperaMin + ' min';
+      }
+      return (
+        <View style={s.center}>
+          <Text style={{ fontSize: 48, marginBottom: 12 }}>OK</Text>
+          <Text style={{ fontSize: 20, color: COLORS.ok, fontWeight: '600' }}>
+            {titulo}
+          </Text>
+          <Text style={{ fontSize: 14, color: COLORS.text3, marginTop: 6, textAlign: 'center', paddingHorizontal: 24 }}>
+            {detalle}
+          </Text>
+        </View>
+      );
+    }
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }}
+        contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+
+        <Text style={s.secLbl}>TELÉFONO (OPCIONAL)</Text>
+        <View style={{ position: 'relative', marginBottom: 14 }}>
+          <TextInput style={s.input} value={recTel}
+            onChangeText={buscarTelRecepcion}
+            placeholder="+56 9 1234 5678" placeholderTextColor={COLORS.text3}
+            keyboardType="phone-pad" />
+          {recBuscando && (
+            <ActivityIndicator size="small" color={COLORS.gold}
+              style={{ position: 'absolute', right: 14, top: 14 }} />
+          )}
+        </View>
+
+        {recUltimaVisita && (
+          <View style={{ backgroundColor: 'rgba(77,184,122,.08)', borderRadius: 10,
+            borderWidth: 1, borderColor: 'rgba(77,184,122,.2)', padding: 12, marginBottom: 14 }}>
+            <Text style={{ fontSize: 12, color: COLORS.ok, fontWeight: '600', marginBottom: 2 }}>
+              Cliente conocido · {recUltimaVisita.visitas} visita{recUltimaVisita.visitas === 1 ? '' : 's'}
+            </Text>
+            <Text style={{ fontSize: 12, color: COLORS.text2 }}>
+              {'Última visita: ' + (recUltimaVisita.relativo || '—')
+                + (recUltimaVisita.barbero ? ' · ' + recUltimaVisita.barbero : '')
+                + (recUltimaVisita.bebida ? ' · ' + recUltimaVisita.bebida : '')}
+            </Text>
+          </View>
+        )}
+
+        <Text style={s.secLbl}>NOMBRE *</Text>
+        <TextInput style={[s.input, { marginBottom: 16 }]} value={recNombre}
+          onChangeText={setRecNombre} placeholder="Nombre del cliente"
+          placeholderTextColor={COLORS.text3} />
+
+        <Text style={s.secLbl}>BARBERO</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+          <TouchableOpacity
+            style={[s.accionCard, recBid === 'any' && { borderColor: COLORS.gold, backgroundColor: 'rgba(201,168,76,.08)' }]}
+            onPress={function() { setRecBid('any'); }}>
+            <View style={[s.accionAvatar, { backgroundColor: 'rgba(201,168,76,.18)' }]}>
+              <Text style={[s.accionLetra, { color: COLORS.gold }]}>⚡</Text>
+            </View>
+            <Text style={[s.accionNom, recBid === 'any' && { color: COLORS.gold }]}>Primer disponible</Text>
+          </TouchableOpacity>
+          {barberos.map(function(b) {
+            return (
+              <TouchableOpacity key={b.bid}
+                style={[s.accionCard, recBid === b.bid && { borderColor: b.color, backgroundColor: 'rgba(201,168,76,.08)' }]}
+                onPress={function() { setRecBid(b.bid); }}>
+                <View style={[s.accionAvatar, { backgroundColor: b.bg }]}>
+                  <Text style={[s.accionLetra, { color: b.color }]}>{b.letra}</Text>
+                </View>
+                <Text style={[s.accionNom, recBid === b.bid && { color: b.color }]}>{b.nombre}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={s.secLbl}>SERVICIO *</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          style={{ marginHorizontal: -18, paddingLeft: 18, marginBottom: 16 }}>
+          {SERVICIOS.filter(function(sv) { return sv.id !== 'custom'; }).map(function(sv) {
+            return (
+              <TouchableOpacity key={sv.id}
+                style={{ width: 105, backgroundColor: recSvcNom === sv.nom ? 'rgba(201,168,76,.12)' : COLORS.s2,
+                  borderRadius: 12, borderWidth: 1,
+                  borderColor: recSvcNom === sv.nom ? COLORS.gold : COLORS.border,
+                  padding: 12, marginRight: 8, alignItems: 'center', justifyContent: 'center' }}
+                onPress={function() {
+                  // service is sent to POST /queue/control/checkin verbatim
+                  // and matched against the servicios catalog server-side by
+                  // exact string — never transform/abbreviate/retype sv.nom,
+                  // it would silently break that match.
+                  setRecSvcNom(sv.nom);
+                }}>
+                <Text style={{ fontSize: 12, color: recSvcNom === sv.nom ? COLORS.gold : COLORS.text2,
+                  textAlign: 'center', fontWeight: '500' }}>{sv.nom}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={s.secLbl}>BEBIDA (OPCIONAL)</Text>
+        <TextInput style={[s.input, { marginBottom: 20 }]} value={recBebida}
+          onChangeText={setRecBebida} placeholder="Ej: Café, agua…"
+          placeholderTextColor={COLORS.text3} />
+
+        <TouchableOpacity
+          style={{ backgroundColor: COLORS.gold, borderRadius: 14, padding: 18, alignItems: 'center',
+            opacity: recEnviando ? 0.55 : 1 }}
+          onPress={registrarRecepcion} disabled={recEnviando}>
+          {recEnviando
+            ? <ActivityIndicator color={COLORS.bg} />
+            : <Text style={{ fontSize: 17, color: COLORS.bg, fontWeight: '700' }}>Registrar e iniciar</Text>
+          }
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  };
 
   const renderResumen = () => (
     <ScrollView
@@ -956,6 +1186,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
         tab === 'resumen'    ? renderResumen()    :
         tab === 'agenda'     ? renderAgenda()     :
         tab === 'registrar'  ? renderRegistrar()  :
+        tab === 'recepcion'  ? renderRecepcion()  :
         tab === 'aprobar'    ? renderAprobar()    :
         tab === 'tendencias' ? renderTendAdmin()  :
         tab === 'mensajes'   ? renderMensajes()   :
@@ -1090,7 +1321,7 @@ const s = StyleSheet.create({
 
   adminTabsOuter: { backgroundColor: COLORS.s1, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   adminTabs: { flexDirection: 'row', minWidth: '100%' },
-  adminTab:  { width: Math.floor(width / 7), alignItems: 'center', paddingVertical: 10,
+  adminTab:  { width: Math.floor(width / 8), alignItems: 'center', paddingVertical: 10,
     position: 'relative' },
   adminTabOn:{ borderBottomWidth: 2, borderBottomColor: COLORS.gold },
   adminTabIcon: { fontSize: 20 },
