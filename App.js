@@ -172,9 +172,21 @@ export default function App() {
       try {
         const token = await SecureStore.getItemAsync('bp_auth_token');
         if (token) {
-          const res  = await fetch(`${API_URL}/api/v2/auth/me`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
+          // Same 10s timeout convention as services/api.js's apiFetch() —
+          // this bare fetch previously had none, which could hang the
+          // loading spinner indefinitely if the request stalled instead of
+          // erroring cleanly (confirmed root cause of a real incident).
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          let res;
+          try {
+            res = await fetch(`${API_URL}/api/v2/auth/me`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(timeout);
+          }
           const json = await res.json();
           if (res.ok && json.ok) {
             const perfil = BARBEROS_FALLBACK.find(b => b.bid === json.bid) || {
@@ -191,7 +203,7 @@ export default function App() {
             await SecureStore.deleteItemAsync('bp_auth_token');
           }
         }
-      } catch { /* network error — stay on LoginScreen */ }
+      } catch { /* network error or timeout — stay on LoginScreen, token untouched */ }
       setAuthReady(true);
     })();
   }, []);
