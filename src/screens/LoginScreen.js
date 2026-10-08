@@ -7,7 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { COLORS, TODOS_PERFILES, ADMIN, API_URL, BARBEROS_FALLBACK } from '../constants';
+import { COLORS, ADMIN, SOCIOS, API_URL } from '../constants';
+import { useBarberos } from '../hooks/useBarberos';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError]     = useState(false);
   const [bioDisponible, setBioDisponible] = useState(false);
   const [avatarImages, setAvatarImages]   = useState({});
+  const { barberos, error: barberosError, retry: barberosRetry } = useBarberos();
 
   // Animaciones del logo
   const logoScale   = useState(new Animated.Value(0.55))[0];
@@ -51,10 +53,17 @@ export default function LoginScreen({ onLogin }) {
       ).start();
     });
 
-    // Cargar fotos y emojis de cada barbero
+  }, []);
+
+  // Cargar fotos y emojis de cada barbero — separate effect, re-runs
+  // whenever the live/cached roster changes (it arrives asynchronously, so
+  // it's often still empty on the very first render of the effect above).
+  useEffect(() => {
+    if (!barberos.length) return;
+    let cancelled = false;
     (async () => {
       const imgs = {};
-      await Promise.all(BARBEROS_FALLBACK.map(async (b) => {
+      await Promise.all(barberos.map(async (b) => {
         try {
           const r    = await fetch(`${API_URL}/barbero/${b.bid}/avatar`);
           const json = await r.json();
@@ -68,9 +77,10 @@ export default function LoginScreen({ onLogin }) {
           if (em) imgs[b.bid] = em;
         } catch {}
       }));
-      setAvatarImages(imgs);
+      if (!cancelled) setAvatarImages(imgs);
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [barberos]);
 
   const seleccionarPerfil = async (p) => {
     setPerfil(p);
@@ -164,10 +174,12 @@ export default function LoginScreen({ onLogin }) {
   };
 
   // ── GRUPOS DE PERFILES ────────────────────────────────────
+  // Barberos group is live/cached (useBarberos()) — never a hardcoded list.
+  // Admin/Socios stay static; they aren't hires that change over time.
   const grupos = [
-    { titulo: '⚡ Administrador', perfiles: TODOS_PERFILES.filter(p => p.rol === 'admin'),  color: COLORS.gold },
-    { titulo: '✂️ Barberos',      perfiles: TODOS_PERFILES.filter(p => p.rol === 'barbero'), color: COLORS.ok },
-    { titulo: '👁 Socios',        perfiles: TODOS_PERFILES.filter(p => p.rol === 'socio'),   color: COLORS.blue },
+    { titulo: '⚡ Administrador', perfiles: [ADMIN], color: COLORS.gold },
+    { titulo: '✂️ Barberos',      perfiles: barberos, color: COLORS.ok, esBarberos: true },
+    { titulo: '👁 Socios',        perfiles: SOCIOS,  color: COLORS.blue },
   ];
 
   // ── PANTALLA SELECCIÓN ────────────────────────────────────
@@ -191,7 +203,24 @@ export default function LoginScreen({ onLogin }) {
           {grupos.map(g => (
             <View key={g.titulo}>
               <Text style={[s.grupoLbl, { color: g.color }]}>{g.titulo}</Text>
-              {g.perfiles.map(p => (
+              {g.esBarberos && g.perfiles.length === 0 ? (
+                barberosError ? (
+                  <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
+                    <Text style={{ color: COLORS.text3, fontSize: 13, marginBottom: 8 }}>
+                      No se pudo cargar la lista de barberos. Revisa tu conexión.
+                    </Text>
+                    <TouchableOpacity onPress={barberosRetry} activeOpacity={0.7}
+                      style={{ alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 14,
+                        borderRadius: 8, borderWidth: 1, borderColor: COLORS.gold }}>
+                      <Text style={{ color: COLORS.gold, fontSize: 13, fontWeight: '600' }}>Reintentar</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text style={{ color: COLORS.text3, fontSize: 13, paddingHorizontal: 20, paddingVertical: 10 }}>
+                    Cargando barberos…
+                  </Text>
+                )
+              ) : g.perfiles.map(p => (
                 <TouchableOpacity key={p.bid} style={s.perfilBtn}
                   onPress={() => seleccionarPerfil(p)} activeOpacity={0.7}>
                   <View style={[s.avatar, { backgroundColor: p.bg }]}>
