@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../constants';
 
@@ -8,6 +8,11 @@ import { API_URL } from '../constants';
 // (bid/nombre/iniciales/color/activo for a handful of barbers, well under
 // 1KB), nowhere close to any per-item size limit.
 const CACHE_KEY = 'bp_barberos_cache_v1';
+
+// Cap how long "Cargando barberos…" can show with no cache to fall back on —
+// a stalled request (bad signal, server hang) shouldn't leave the login
+// screen stuck indefinitely with no way forward.
+const FETCH_TIMEOUT_MS = 8000;
 
 const _DEFAULT_COLOR = '#c9a84c';
 const _DEFAULT_BG    = 'rgba(201,168,76,.18)';
@@ -54,14 +59,29 @@ async function _saveCache(apiList) {
   }
 }
 
-// Never falls back to a hardcoded list. Order: live GET /barberos first; if
-// that fails, the last-known-good cache from SecureStore; if both fail (or
-// it's a first-ever launch with no cache yet), `error` is set so callers can
-// show a clear message instead of silently rendering an empty/stale roster.
+function _fetchWithTimeout(url, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+// Never falls back to a hardcoded list. Order: live GET /barberos first
+// (capped at FETCH_TIMEOUT_MS — a stalled request doesn't hang forever); if
+// that fails or times out, the last-known-good cache from SecureStore; if
+// both fail (or it's a first-ever launch with no cache yet), `error` is set
+// so callers can show a clear message — with a `retry()` escape hatch —
+// instead of silently rendering an empty/stale roster.
 export function useBarberos() {
   const [barberos, setBarberos] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
+
+  const retry = useCallback(() => {
+    setError(false);
+    setLoading(true);
+    setRetryTick(t => t + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +91,7 @@ export function useBarberos() {
       if (!cancelled && cached) setBarberos(cached);
 
       try {
-        const r = await fetch(`${API_URL}/barberos`);
+        const r = await _fetchWithTimeout(`${API_URL}/barberos`, FETCH_TIMEOUT_MS);
         const list = await r.json();
         if (cancelled) return;
         if (Array.isArray(list) && list.length) {
@@ -81,6 +101,7 @@ export function useBarberos() {
           setError(true);
         }
       } catch {
+        // Covers both a real network failure and the abort() timeout firing.
         if (!cancelled && !cached) setError(true);
       } finally {
         if (!cancelled) setLoading(false);
@@ -88,7 +109,7 @@ export function useBarberos() {
     })();
 
     return () => { cancelled = true; };
-  }, []);
+  }, [retryTick]);
 
-  return { barberos, loading, error };
+  return { barberos, loading, error, retry };
 }

@@ -20,7 +20,7 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError]     = useState(false);
   const [bioDisponible, setBioDisponible] = useState(false);
   const [avatarImages, setAvatarImages]   = useState({});
-  const { barberos, error: barberosError } = useBarberos();
+  const { barberos, error: barberosError, retry: barberosRetry } = useBarberos();
 
   // Animaciones del logo
   const logoScale   = useState(new Animated.Value(0.55))[0];
@@ -204,11 +204,22 @@ export default function LoginScreen({ onLogin }) {
             <View key={g.titulo}>
               <Text style={[s.grupoLbl, { color: g.color }]}>{g.titulo}</Text>
               {g.esBarberos && g.perfiles.length === 0 ? (
-                <Text style={{ color: COLORS.text3, fontSize: 13, paddingHorizontal: 20, paddingVertical: 10 }}>
-                  {barberosError
-                    ? 'No se pudo cargar la lista de barberos. Revisa tu conexión e intenta de nuevo.'
-                    : 'Cargando barberos…'}
-                </Text>
+                barberosError ? (
+                  <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
+                    <Text style={{ color: COLORS.text3, fontSize: 13, marginBottom: 8 }}>
+                      No se pudo cargar la lista de barberos. Revisa tu conexión.
+                    </Text>
+                    <TouchableOpacity onPress={barberosRetry} activeOpacity={0.7}
+                      style={{ alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 14,
+                        borderRadius: 8, borderWidth: 1, borderColor: COLORS.gold }}>
+                      <Text style={{ color: COLORS.gold, fontSize: 13, fontWeight: '600' }}>Reintentar</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text style={{ color: COLORS.text3, fontSize: 13, paddingHorizontal: 20, paddingVertical: 10 }}>
+                    Cargando barberos…
+                  </Text>
+                )
               ) : g.perfiles.map(p => (
                 <TouchableOpacity key={p.bid} style={s.perfilBtn}
                   onPress={() => seleccionarPerfil(p)} activeOpacity={0.7}>
