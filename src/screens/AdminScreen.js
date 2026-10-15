@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from '../constants';
 import { useBarberos } from '../hooks/useBarberos';
 import { api } from '../services/api';
+import { botonesPago, comisionPreview } from '../services/pagos';
 const { width } = Dimensions.get('window');
 
 function minsHasta(hora) {
@@ -326,8 +327,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
     const precio = svc.id === 'custom' ? (parseInt(regCustomPrecio)||0) : svc.precio;
     if (precio <= 0) { Alert.alert('Falta el precio'); return; }
     const b = barberos.find(x => x.bid === regBid);
-    const com = regPago === 'debito' ? 0.43 : 0.5;
-    const bb  = Math.round(precio * com);
+    const prevReg = comisionPreview(catalogo, regPago, precio);   // informative; the server recomputes
     const ts  = Date.now();
     const now = new Date();
     const hora = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
@@ -335,7 +335,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
       id: 'TK'+ts, bid: regBid, bnom: b?.nombre||regBid,
       sid: svc.id,
       snom: svc.id==='custom' ? regCustomNom.trim()||'Servicio especial' : svc.nom,
-      precio, pago: regPago, com, bb, neg: precio-bb,
+      precio, pago: regPago, ...(prevReg ? { com: prevReg.com, bb: prevReg.bb, neg: prevReg.neg } : {}),
       propina: parseInt(regPropina)||0,
       fecha: hoy(), hora, ts,
     };
@@ -446,13 +446,11 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const renderRegistrar = () => {
     const svc    = SERVICIOS.find(s => s.id === regSid) || SERVICIOS[0];
     const precio = svc.id === 'custom' ? (parseInt(regCustomPrecio) || 0) : svc.precio;
-    const com    = regPago === 'debito' ? 0.43 : 0.5;
-    const bb     = Math.round(precio * com) + (parseInt(regPropina) || 0);
-    const PAGOS  = [
-      { id: 'efectivo',      label: 'Efectivo',   color: COLORS.ok   },
-      { id: 'debito',        label: 'Debito',      color: COLORS.blue },
-      { id: 'transferencia', label: 'Transf.',     color: COLORS.gold },
-    ];
+    // Preview from the server's rates; "Recibe" = commission + tip, shown as such.
+    const prevV  = comisionPreview(catalogo, regPago, precio);
+    const com    = prevV ? prevV.com : null;
+    const bb     = prevV ? prevV.bb + (parseInt(regPropina) || 0) : null;
+    const PAGOS  = botonesPago(catalogo);
     if (regExito) {
       return (
         <View style={s.center}>
@@ -553,9 +551,9 @@ export default function AdminScreen({ onLogout, catalogo }) {
             textTransform: 'uppercase', marginBottom: 6 }}>
             {'RECIBE ' + (barberos.find(function(b) { return b.bid === regBid; }) || {}).nombre}
           </Text>
-          <Text style={{ fontSize: 40, color: COLORS.ok, fontWeight: '500' }}>{'$' + fmt(bb)}</Text>
+          <Text style={{ fontSize: 40, color: COLORS.ok, fontWeight: '500' }}>{bb == null ? 'al guardar' : '$' + fmt(bb)}</Text>
           <Text style={{ fontSize: 13, color: COLORS.text3, marginTop: 4 }}>
-            {Math.round(com * 100) + '% sobre $' + fmt(precio)}
+            {com == null ? '' : Math.round(com * 100) + '% sobre $' + fmt(precio) + ((parseInt(regPropina) || 0) > 0 ? ' + propina' : '')}
           </Text>
         </View>
 

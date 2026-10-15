@@ -268,6 +268,7 @@ export default function App() {
               servicios: mapServiciosDesdeServidor(cached.servicios),
               meta: cached.meta || null,
               calendario: cached.calendario || null,
+              metodosPago: Array.isArray(cached.metodos_pago) ? cached.metodos_pago : null,
               actualizadoEn: cached.fecha || null,
             }));
             usedCache = true;
@@ -295,11 +296,12 @@ export default function App() {
           servicios: mapServiciosDesdeServidor(data.servicios),
           meta: data.meta || null,
           calendario: data.calendario || null,
+          metodosPago: Array.isArray(data.metodos_pago) ? data.metodos_pago : null,
           cargando: false, cargado: true, error: false,
           actualizadoEn: nowIso,
         });
         SecureStore.setItemAsync(CATALOGO_CACHE_KEY, JSON.stringify({
-          servicios: data.servicios, meta: data.meta, calendario: data.calendario, fecha: nowIso,
+          servicios: data.servicios, meta: data.meta, calendario: data.calendario, metodos_pago: data.metodos_pago, fecha: nowIso,
         })).catch(() => {});
       } catch (e) {
         // Fetch resuelto (con error) — desbloquea el envío igual, usando
@@ -420,9 +422,9 @@ export default function App() {
       case 'registrar':  return <RegistrarScreen   barbero={usuario} catalogo={catalogo} />;
       case 'mes':        return <MesScreen         barbero={usuario} catalogo={catalogo} />;
       case 'tendencias': return <TendenciasScreen  barbero={usuario} />;
-      case 'cobrar':     return <LiquidacionScreen barbero={usuario} />;
+      case 'cobrar':     return <LiquidacionScreen barbero={usuario} catalogo={catalogo} />;
       case 'mensajes':   return <MensajesScreen    barbero={usuario} />;
-      case 'config':     return <ConfigScreen      barbero={usuario} onLogout={logout} />;
+      case 'config':     return <ConfigScreen      barbero={usuario} onLogout={logout} catalogo={catalogo} />;
       default:           return <HoyScreen         barbero={usuario} catalogo={catalogo} />;
     }
   };

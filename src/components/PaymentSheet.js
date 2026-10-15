@@ -6,12 +6,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { COLORS, SERVICIOS_FALLBACK, fmt, hoy } from '../constants';
 import { api } from '../services/api';
-
-const PAGOS = [
-  { id: 'efectivo',      label: '💵 Efectivo',     color: COLORS.ok,   bg: 'rgba(77,184,122,.15)'  },
-  { id: 'debito',        label: '💳 Débito',        color: COLORS.blue, bg: 'rgba(85,130,212,.15)'  },
-  { id: 'transferencia', label: '📲 Transferencia', color: COLORS.gold, bg: 'rgba(201,168,76,.15)'  },
-];
+import { botonesPago, comisionPreview } from '../services/pagos';
 
 export default function PaymentSheet({ visible, entry, barbero, onClose, onCompleted, catalogo }) {
   const [pago,         setPago]         = useState('efectivo');
@@ -54,12 +49,16 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
   // Blocks only until the first fetch attempt since app launch resolves
   // (success or failure) — never blocks once resolved, even on failure.
   const preciosCargando = !catalogo || catalogo.cargando === true;
+  const PAGOS = botonesPago(catalogo);
 
   // ── Live commission ───────────────────────────────────────────
-  const com       = pago === 'debito' ? 0.43 : 0.50;
+  // Preview from the server's rates; the server computes the real commission.
+  // bb is the commission ONLY — the tip goes only in `propina`.
+  const prev      = comisionPreview(catalogo, pago, servicePrecio);
   const propinaNum = parseInt(propina) || 0;
-  const bb        = Math.round(servicePrecio * com) + propinaNum;
-  const neg       = servicePrecio - Math.round(servicePrecio * com);
+  const com       = prev ? prev.com : null;
+  const bb        = prev ? prev.bb : null;
+  const neg       = prev ? prev.neg : null;
   const total     = servicePrecio + propinaNum;
 
   // ── Submit ────────────────────────────────────────────────────
@@ -78,9 +77,7 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
       snom:    entry.service,
       precio:  servicePrecio,
       pago:    pago,
-      com:     com,
-      bb:      bb,
-      neg:     neg,
+      ...(prev ? { com, bb, neg } : {}),   // informative; the server recomputes
       propina:          propinaNum,
       fecha:            hoy(),
       hora:             `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
@@ -186,13 +183,13 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
               {/* Commission preview */}
               <View style={s.commCard}>
                 <View style={s.commRow}>
-                  <Text style={s.commLbl}>Barbero</Text>
-                  <Text style={[s.commVal, { color: COLORS.ok }]}>${fmt(bb)}</Text>
+                  <Text style={s.commLbl}>Barbero (comisión)</Text>
+                  <Text style={[s.commVal, { color: COLORS.ok }]}>{bb == null ? 'al guardar' : `$${fmt(bb)}`}</Text>
                 </View>
                 <View style={s.commDivider} />
                 <View style={s.commRow}>
                   <Text style={s.commLbl}>Negocio</Text>
-                  <Text style={[s.commVal, { color: COLORS.text3 }]}>${fmt(neg)}</Text>
+                  <Text style={[s.commVal, { color: COLORS.text3 }]}>{neg == null ? 'al guardar' : `$${fmt(neg)}`}</Text>
                 </View>
               </View>
 

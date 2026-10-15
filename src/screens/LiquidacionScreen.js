@@ -4,8 +4,9 @@ import {
 } from 'react-native';
 import { COLORS, fmt, hoy } from '../constants';
 import { api } from '../services/api';
+import { etiquetaPago, iconoPago } from '../services/pagos';
 
-export default function LiquidacionScreen({ barbero }) {
+export default function LiquidacionScreen({ barbero, catalogo }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,7 +73,7 @@ export default function LiquidacionScreen({ barbero }) {
         )}
         {desglose.debito > 0 && (
           <View style={s.liqRow}>
-            <Text style={s.liqLbl}>💳 Débito</Text>
+            <Text style={s.liqLbl}>{`${iconoPago('debito')} ${etiquetaPago(catalogo, 'debito')}`}</Text>
             <Text style={[s.liqVal, { color: COLORS.blue }]}>${fmt(desglose.debito)}</Text>
           </View>
         )}
