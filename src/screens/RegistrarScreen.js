@@ -7,16 +7,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_URL, COLORS, SERVICIOS_FALLBACK, fmt, hoy } from '../constants';
+import { botonesPago, comisionPreview } from '../services/pagos';
 import { api } from '../services/api';
 import { updateDayNotification } from '../services/DayNotification';
 
 const { width } = Dimensions.get('window');
 
-const PAGOS = [
-  { id: 'efectivo',      label: '💵 Efectivo',       color: COLORS.ok,   bg: 'rgba(77,184,122,.15)'  },
-  { id: 'debito',        label: '💳 Débito',          color: COLORS.blue, bg: 'rgba(85,130,212,.15)'  },
-  { id: 'transferencia', label: '📲 Transferencia',   color: COLORS.gold, bg: 'rgba(201,168,76,.15)'  },
-];
 
 export default function RegistrarScreen({ barbero, catalogo }) {
   const [sid, setSid]               = useState('s01');
@@ -53,9 +49,13 @@ export default function RegistrarScreen({ barbero, catalogo }) {
   // The App.js-level staleness banner already tells the barber if the price
   // shown might not be current; this screen doesn't duplicate that indicator.
   const preciosCargando = !catalogo || catalogo.cargando === true;
-  const com    = pago === 'debito' ? 0.43 : 0.5;
-  const bb     = Math.round(precio * com) + (parseInt(propina) || 0);
-  const neg    = precio - Math.round(precio * com);
+  const PAGOS  = botonesPago(catalogo);
+  // Preview from the server's rates (the server computes the real commission);
+  // "Recibes tú" = commission + tip, shown as such.
+  const prev   = comisionPreview(catalogo, pago, Number(precio) || 0);
+  const com    = prev ? prev.com : null;
+  const bb     = prev ? prev.bb + (parseInt(propina) || 0) : null;
+  const neg    = prev ? prev.neg : null;
 
   // ── Foto ──────────────────────────────────────────────────
   const tomarFoto = async (fromGallery = false) => {
@@ -127,10 +127,9 @@ export default function RegistrarScreen({ barbero, catalogo }) {
       const now   = new Date();
       const hora  = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       const regId = `TK${ts}`;
-      const comRate = pago === 'debito' ? 0.43 : 0.50;
       const precioNum  = Number(precio) || 0;
       const propinaNum = Number(propina) || 0;
-      const bbBase     = Math.round(precioNum * comRate);
+      const prevGuardar = comisionPreview(catalogo, pago, precioNum);
 
       const reg = {
         id:     regId,
@@ -140,9 +139,7 @@ export default function RegistrarScreen({ barbero, catalogo }) {
         snom:   svc.id === 'custom' ? (nombreCustom.trim() || 'Especial') : (svc.nom || svc.nombre),
         precio: precioNum,
         pago,
-        com:    comRate,
-        bb:     bbBase,
-        neg:    precioNum - bbBase,
+        ...(prevGuardar ? { com: prevGuardar.com, bb: prevGuardar.bb, neg: prevGuardar.neg } : {}),  // informative; the server recomputes
         propina: propinaNum,
         fecha:  hoy(),
         hora,
@@ -363,8 +360,8 @@ export default function RegistrarScreen({ barbero, catalogo }) {
       {/* PREVIEW BB */}
       <View style={s.preview2}>
         <Text style={s.previewLbl}>RECIBES TÚ</Text>
-        <Text style={s.previewVal}>${fmt(bb)}</Text>
-        <Text style={s.previewSub}>{Math.round(com * 100)}% comisión · ${fmt(precio)} servicio</Text>
+        <Text style={s.previewVal}>{bb == null ? 'se calcula al guardar' : `$${fmt(bb)}`}</Text>
+        <Text style={s.previewSub}>{com == null ? '' : `${Math.round(com * 100)}% comisión · $${fmt(precio)} servicio${(parseInt(propina) || 0) > 0 ? ' + propina' : ''}`}</Text>
       </View>
 
       {/* BOTÓN ENVIAR */}

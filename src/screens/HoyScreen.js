@@ -8,6 +8,7 @@ import CalendarioModal from './CalendarioModal';
 import MetaBanner from './MetaBanner';
 import { updateDayNotification } from '../services/DayNotification';
 import { api } from '../services/api';
+import { etiquetaPago, iconoPago } from '../services/pagos';
 
 const KPI_LABELS = {
   apertura:   'Apertura',
@@ -315,7 +316,7 @@ export default function HoyScreen({ barbero, catalogo }) {
                   <View key={pago} style={{marginBottom:10}}>
                     <View style={s.rowBetween}>
                       <Text style={s.pagoNom}>
-                        {pago==='efectivo'?'💵':pago==='debito'?'💳':'📲'} {pago}
+                        {iconoPago(pago)} {etiquetaPago(catalogo, pago)}
                       </Text>
                       <Text style={[s.pagoVal,{color:ps.color}]}>
                         {v.n} svc · ${fmt(v.bb)}

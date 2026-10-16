@@ -6,6 +6,7 @@ import {
 import { API_URL, COLORS, fmt, fmtM, mesPeriodo, hoy, TODOS_PERFILES } from '../constants';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../services/api';
+import { etiquetaPago, iconoPago } from '../services/pagos';
 
 const PERIODOS = [
   { id: 'hoy',    label: 'Hoy'           },
@@ -16,7 +17,7 @@ const PERIODOS = [
 
 const PAGOS_OPT = ['Todos', 'efectivo', 'debito', 'transferencia'];
 
-export default function ConfigScreen({ barbero, onLogout }) {
+export default function ConfigScreen({ barbero, onLogout, catalogo }) {
   const [periodo,   setPeriodo]   = useState('mes');
   const [filtroPago, setFiltroPago] = useState('Todos');
   const [datos,     setDatos]     = useState(null);
@@ -190,10 +191,7 @@ export default function ConfigScreen({ barbero, onLogout }) {
             style={[s.chip, filtroPago === p && s.chipOn]}
             onPress={() => setFiltroPago(p)}>
             <Text style={[s.chipTxt, filtroPago === p && s.chipTxtOn]}>
-              {p === 'efectivo' ? '💵 Efectivo'
-                : p === 'debito' ? '💳 Débito'
-                : p === 'transferencia' ? '📲 Transf.'
-                : '📋 Todos'}
+              {p === 'Todos' ? '📋 Todos' : `${iconoPago(p)} ${etiquetaPago(catalogo, p)}`}
             </Text>
           </TouchableOpacity>
         ))}
@@ -241,8 +239,7 @@ export default function ConfigScreen({ barbero, onLogout }) {
                   <View key={pago} style={{ marginBottom: 12 }}>
                     <View style={s.rowBetween}>
                       <Text style={s.pagoNom}>
-                        {pago === 'efectivo' ? '💵 Efectivo'
-                          : pago === 'debito' ? '💳 Débito' : '📲 Transferencia'}
+                        {`${iconoPago(pago)} ${etiquetaPago(catalogo, pago)}`}
                       </Text>
                       <Text style={[s.pagoVal, { color }]}>
                         {v.n} svc · ${fmt(v.fact)}
