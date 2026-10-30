@@ -75,3 +75,13 @@ export function getMetaNegocio(periodo, configNegocio) {
   if (periodo === 'mes') return metaMes;
   return Math.round(metaMes / diasHabiles);
 }
+
+// Services still needed to reach an EARNINGS goal: ceil((goal - earned so far) / what ONE service earns this barber on average).
+// ingresoPorServicio comes from the server (GET /barberos/:bid/ingreso-por-servicio): his own commission + tip per service, or the cold-start
+// estimate. It is NOT the service price: dividing an earnings goal by the price (as this screen used to) gives far too few services.
+// null when any figure is missing or invalid (the screen then shows no services target instead of a wrong one); 0 when the goal is reached.
+export function serviciosNecesarios(metaIngresos, ganado, ingresoPorServicio) {
+  if (!Number.isFinite(metaIngresos) || !Number.isFinite(ganado) || !(ingresoPorServicio > 0)) return null;
+  const falta = metaIngresos - ganado;
+  return falta > 0 ? Math.ceil(falta / ingresoPorServicio) : 0;
+}

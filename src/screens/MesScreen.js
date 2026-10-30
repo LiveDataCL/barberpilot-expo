@@ -4,12 +4,14 @@ import {
 } from 'react-native';
 import { COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import { api } from '../services/api';
-import { getMetaBarbero } from '../services/metas';
+import { getMetaBarbero, serviciosNecesarios } from '../services/metas';
+import { cargarIngresoPorServicio } from '../services/ingresoPorServicio';
 
 export default function MesScreen({ barbero, catalogo }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [ingresoPorServicio, setIngresoPorServicio] = useState(null);
 
   const cargar = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -22,6 +24,7 @@ export default function MesScreen({ barbero, catalogo }) {
   };
 
   useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargarIngresoPorServicio(api, barbero.bid).then(setIngresoPorServicio); }, []);
 
   if (loading) return (
     <View style={s.center}><ActivityIndicator size="large" color={COLORS.gold} /></View>
@@ -35,8 +38,9 @@ export default function MesScreen({ barbero, catalogo }) {
   const regs = data?.registros   || [];
 
   const META     = getMetaBarbero('mes', catalogo);
-  const avgTk    = tk || 13000;
-  const metaSvc  = Math.max(1, Math.round(META / avgTk));
+  // services still needed = what is left of the EARNINGS goal / what one service earns this barber (not the average price)
+  const faltaSvc = serviciosNecesarios(META, bb, ingresoPorServicio);   // null = unknown
+  const metaSvc  = faltaSvc === null ? null : n + faltaSvc;
   const pct      = Math.min(100, Math.round(bb / META * 100));
   const falta    = Math.max(0, META - bb);
 
@@ -85,7 +89,7 @@ export default function MesScreen({ barbero, catalogo }) {
           <Text style={[s.metaVal, { color: COLORS.ok }]}>{fmtM(bb)}</Text>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={s.metaTotal}>Meta: {fmtM(META)}</Text>
-            <Text style={[s.metaTotal, { marginTop: 2 }]}>{n} / {metaSvc} servicios</Text>
+            <Text style={[s.metaTotal, { marginTop: 2 }]}>{metaSvc === null ? n + ' servicios' : n + ' / ' + metaSvc + ' servicios'}</Text>
           </View>
         </View>
         <View style={s.barBg}>
