@@ -130,13 +130,14 @@ export default function SocioScreen() {
 
       // Proyección
       if (mesR.ok && mesR.datos) {
-        const mesFact = mesR.datos.reduce((a, r) => a + (r.facturado || 0), 0);
-        const diaHoy  = new Date().getDate();
-        const diasMes = new Date(
-          new Date().getFullYear(), new Date().getMonth() + 1, 0
-        ).getDate();
-        const proy = Math.round(mesFact / diaHoy * diasMes);
-        setMesDatos({ fact: mesFact, proy });
+        // like for like: the projection is on SERVICES, so the figure beside it is services too; products are shown apart
+        const mesFact = mesR.datos.reduce((a, r) => a + (r.facturado_servicios || 0), 0);
+        const mesProd = mesR.datos.reduce((a, r) => a + (r.facturado_productos || 0), 0);
+        // The projection comes from the API (weighted open days: Saturdays count less, Sundays and holidays not at all).
+        // This screen keeps no formula of its own; null = the server could not compute it.
+        const pb = mesR.proyeccion;
+        const proy = pb && pb.proyeccion !== null && pb.proyeccion !== undefined ? pb.proyeccion : null;
+        setMesDatos({ fact: mesFact, prod: mesProd, proy, preliminar: !!(pb && pb.preliminar) });
       }
     } catch (e) {
       console.error('SocioScreen cargar error:', e);
@@ -179,9 +180,13 @@ export default function SocioScreen() {
       {/* Proyección mensual */}
       {mesDatos && (
         <View style={s.proyCard}>
-          <Text style={s.proyLbl}>PROYECCION {mesPeriodo()}</Text>
-          <Text style={s.proyVal}>${fmt(mesDatos.proy)}</Text>
-          <Text style={s.proyActual}>Acumulado mes: ${fmt(mesDatos.fact)}</Text>
+          <Text style={s.proyLbl}>PROYECCION SERVICIOS {mesPeriodo()}</Text>
+          <Text style={s.proyVal}>{mesDatos.proy === null ? '—' : '$' + fmt(mesDatos.proy)}</Text>
+          {mesDatos.proy !== null && mesDatos.preliminar && (
+            <Text style={s.proyActual}>Preliminar: aún pocos días del mes</Text>
+          )}
+          <Text style={s.proyActual}>Facturado servicios del mes: ${fmt(mesDatos.fact)}</Text>
+          <Text style={s.proyActual}>Productos del mes: ${fmt(mesDatos.prod)}</Text>
         </View>
       )}
 
