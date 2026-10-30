@@ -6,6 +6,7 @@ import {
 import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import MetaBanner from './MetaBanner';
+import { cargarIngresoPorServicio } from '../services/ingresoPorServicio';
 import { updateDayNotification } from '../services/DayNotification';
 import { api } from '../services/api';
 import { etiquetaPago, iconoPago } from '../services/pagos';
@@ -100,7 +101,7 @@ export default function HoyScreen({ barbero, catalogo }) {
   const [fechaHasta,    setFechaHasta]   = useState('');
   const [agenda,        setAgenda]       = useState([]);
   const [agendaVisible, setAgendaVisible]= useState(false);
-  const [avgTicket,     setAvgTicket]    = useState(13000);
+  const [ingresoPorServicio, setIngresoPorServicio] = useState(null);
 
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -174,43 +175,10 @@ export default function HoyScreen({ barbero, catalogo }) {
   }, [agenda.length]);
 
 
-  // avgTicket: ticket promedio real de los últimos 30 días (independiente del período)
+  // What one service earns THIS barber (server figure). It used to be the average ticket (the price, from 31 requests), which made the services
+  // target far too small for an earnings goal.
   useEffect(() => {
-    const fetchAvgTicket = async () => {
-      try {
-        const desde = new Date();
-        desde.setDate(desde.getDate() - 30);
-        const desdeStr = desde.toISOString().slice(0, 10);
-        const hastaStr = new Date().toISOString().slice(0, 10);
-        const days = [];
-        let cur = new Date(desdeStr + 'T12:00:00');
-        const fin = new Date(hastaStr + 'T12:00:00');
-        while (cur <= fin) {
-          days.push(cur.toISOString().slice(0, 10));
-          cur.setDate(cur.getDate() + 1);
-        }
-        const results = await Promise.all(
-          days.map(f =>
-            api.get(`/registros/dia?fecha=${f}`)
-              .catch(() => ({ ok: false, registros: [] }))
-          )
-        );
-        let allRegs = [];
-        results.forEach(r => {
-          if (r.ok && r.registros)
-            allRegs = allRegs.concat(r.registros.filter(x => x.bid === barbero.bid));
-        });
-        if (allRegs.length > 0) {
-          const avg = Math.round(
-            allRegs.reduce((a, r) => a + (r.precio || 0), 0) / allRegs.length
-          );
-          setAvgTicket(avg);
-        }
-      } catch(e) {
-        console.log('avgTicket fetch error:', e.message);
-      }
-    };
-    fetchAvgTicket();
+    cargarIngresoPorServicio(api, barbero.bid).then(setIngresoPorServicio);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stats calculados
@@ -269,7 +237,7 @@ export default function HoyScreen({ barbero, catalogo }) {
         <>
           {/* Banner de meta */}
           {['hoy', 'semana', 'mes'].includes(periodo) && (
-            <MetaBanner periodo={periodo} svc={n} bb={bb} avgTicket={avgTicket} configNegocio={catalogo} />
+            <MetaBanner periodo={periodo} svc={n} bb={bb} ingresoPorServicio={ingresoPorServicio} configNegocio={catalogo} />
           )}
 
           {/* Hero */}

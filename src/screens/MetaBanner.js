@@ -1,21 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { COLORS, fmt, fmtM } from '../constants';
-import { getMetaBarbero } from '../services/metas';
+import { getMetaBarbero, serviciosNecesarios } from '../services/metas';
 
 const ETIQUETA = { hoy: 'DÍA', semana: 'SEMANA', mes: 'MES' };
 
-const DEFAULT_TICKET = 13000;
-
-export default function MetaBanner({ periodo, svc, bb, avgTicket, configNegocio }) {
+export default function MetaBanner({ periodo, svc, bb, ingresoPorServicio, configNegocio }) {
   if (!['hoy', 'semana', 'mes'].includes(periodo)) return null;
 
   const metaFact = getMetaBarbero(periodo, configNegocio);
-  const metaSvc  = Math.max(1, Math.round(metaFact / (avgTicket || DEFAULT_TICKET)));
+  // services still needed = what is left of the EARNINGS goal / what one service earns this barber (not the service price)
+  const faltaSvc2 = serviciosNecesarios(metaFact, bb, ingresoPorServicio);   // null = unknown
+  const metaSvc   = faltaSvc2 === null ? null : svc + faltaSvc2;
 
-  const pctSvc  = Math.min(svc  / metaSvc  * 100, 100);
+  const pctSvc  = metaSvc ? Math.min(svc / metaSvc * 100, 100) : 0;
   const pctFact = Math.min(bb / metaFact * 100, 100);
-  const pctAvg  = Math.round((pctSvc + pctFact) / 2);
+  const pctAvg  = metaSvc === null ? Math.round(pctFact) : Math.round((pctSvc + pctFact) / 2);
 
   const animSvc  = useRef(new Animated.Value(0)).current;
   const animFact = useRef(new Animated.Value(0)).current;
@@ -30,7 +30,6 @@ export default function MetaBanner({ periodo, svc, bb, avgTicket, configNegocio 
   const barColor = (pct) =>
     pct >= 100 ? COLORS.ok : pct >= 60 ? COLORS.gold : 'rgba(201,168,76,.4)';
 
-  const faltaSvc2  = Math.max(metaSvc - svc, 0);
   const faltaFact2 = Math.max(metaFact - bb, 0);
   const fmtVal     = (v) => v >= 100000 ? fmtM(v) : '$' + fmt(v);
 
@@ -46,15 +45,18 @@ export default function MetaBanner({ periodo, svc, bb, avgTicket, configNegocio 
       <View style={s.fila}>
         <View style={s.filaHead}>
           <Text style={s.filaLbl}>✂️ Servicios</Text>
-          <Text style={s.filaNum}>{svc} / {metaSvc}</Text>
+          <Text style={s.filaNum}>{metaSvc === null ? String(svc) : svc + ' / ' + metaSvc}</Text>
         </View>
-        <View style={s.barBg}>
-          <Animated.View style={[s.barFill, {
-            width: animSvc.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
-            backgroundColor: barColor(pctSvc),
-          }]} />
-        </View>
+        {metaSvc !== null && (
+          <View style={s.barBg}>
+            <Animated.View style={[s.barFill, {
+              width: animSvc.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
+              backgroundColor: barColor(pctSvc),
+            }]} />
+          </View>
+        )}
         {faltaSvc2 > 0 && <Text style={s.falta}>Faltan {faltaSvc2} svc</Text>}
+        {metaSvc === null && <Text style={s.falta}>Meta de servicios no disponible por ahora</Text>}
       </View>
 
       <View style={[s.fila, { marginBottom: 0 }]}>
