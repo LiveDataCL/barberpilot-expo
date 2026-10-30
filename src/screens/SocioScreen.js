@@ -83,7 +83,9 @@ export default function SocioScreen() {
       });
 
       const n    = regs.length;
-      const fact = regs.reduce((a, r) => a + (r.precio || 0), 0);
+      const fact = regs.reduce((a, r) => a + (r.precio || 0), 0);   // TOTAL billed: services + products
+      const factProd = regs.filter(r => String(r.sid || '').startsWith('p')).reduce((a, r) => a + (r.precio || 0), 0);
+      const factSvc  = fact - factProd;   // services: the basis of the goal and of the projection
       const bb   = regs.reduce((a, r) => a + (r.bb || 0), 0);
       const neg  = fact - bb;
       const tk   = n > 0 ? Math.round(fact / n) : 0;
@@ -126,7 +128,7 @@ export default function SocioScreen() {
         }
       });
 
-      setDatos({ n, fact, bb, neg, tk, porBarbero, porPago, porHora, porDia });
+      setDatos({ n, fact, factSvc, factProd, bb, neg, tk, porBarbero, porPago, porHora, porDia });
 
       // Proyección
       if (mesR.ok && mesR.datos) {
@@ -185,22 +187,20 @@ export default function SocioScreen() {
           {mesDatos.proy !== null && mesDatos.preliminar && (
             <Text style={s.proyActual}>Preliminar: aún pocos días del mes</Text>
           )}
-          <Text style={s.proyActual}>Facturado servicios del mes: ${fmt(mesDatos.fact)}</Text>
-          <Text style={s.proyActual}>Productos del mes: ${fmt(mesDatos.prod)}</Text>
+          <Text style={s.proyActual}>Servicios del mes: ${fmt(mesDatos.fact)} · Productos: ${fmt(mesDatos.prod)}</Text>
         </View>
       )}
 
-      {/* Card semana si aplica */}
-      {periodo === 'semana' && datos && (
+      {/* Total facturado del período (día, semana, mes, rango): lo que entró al negocio, con el desglose debajo */}
+      {datos && (
         <View style={[s.proyCard, { backgroundColor: 'rgba(77,184,122,.08)',
           borderColor: 'rgba(77,184,122,.25)', marginBottom: 12 }]}>
-          <Text style={[s.proyLbl, { color: COLORS.ok }]}>ESTA SEMANA</Text>
+          <Text style={[s.proyLbl, { color: COLORS.ok }]}>TOTAL FACTURADO · {(PERIODOS.find(p => p.id === periodo) || {}).label}</Text>
           <Text style={[s.proyVal, { color: COLORS.ok, fontSize: 42 }]}>
             ${fmt(datos.fact)}
           </Text>
-          <Text style={s.proyActual}>
-            {datos.n} servicios · ${fmt(datos.tk)} ticket prom.
-          </Text>
+          <Text style={s.proyActual}>Servicios (base de meta y proyección): ${fmt(datos.factSvc)}</Text>
+          <Text style={s.proyActual}>Productos: ${fmt(datos.factProd)}</Text>
         </View>
       )}
 
@@ -243,7 +243,7 @@ export default function SocioScreen() {
             </View>
             <View style={[s.statCard, s.statGold]}>
               <Text style={[s.statVal, { color: COLORS.gold }]}>${fmt(datos.fact)}</Text>
-              <Text style={s.statLbl}>Facturacion</Text>
+              <Text style={s.statLbl}>Total facturado</Text>
             </View>
             <View style={[s.statCard, s.statGreen]}>
               <Text style={[s.statVal, { color: COLORS.ok }]}>${fmt(datos.neg)}</Text>
