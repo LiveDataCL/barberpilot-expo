@@ -375,7 +375,7 @@ export default function App() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.hdrName}>Administrador</Text>
-                <Text style={s.hdrSub}>SALON MEN SF · ACCESO TOTAL</Text>
+                <Text style={s.hdrSub}>SALÓN MEN · ACCESO TOTAL</Text>
               </View>
               <TouchableOpacity style={s.logoutBtn} onPress={logout}>
                 <Text style={s.logoutTxt}>⇄</Text>
@@ -401,7 +401,7 @@ export default function App() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.hdrName}>{usuario.nombre}</Text>
-                <Text style={s.hdrSub}>SALON MEN SF · SOLO VISUALIZACIÓN</Text>
+                <Text style={s.hdrSub}>SALÓN MEN · SOLO VISUALIZACIÓN</Text>
               </View>
               <TouchableOpacity style={s.logoutBtn} onPress={logout}>
                 <Text style={s.logoutTxt}>⇄</Text>
@@ -447,7 +447,7 @@ export default function App() {
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={s.hdrName}>{usuario.nombre}</Text>
-              <Text style={s.hdrSub}>SALON MEN SF</Text>
+              <Text style={s.hdrSub}>SALÓN MEN</Text>
             </View>
             <TouchableOpacity style={s.logoutBtn} onPress={logout}>
               <Text style={s.logoutTxt}>⇄</Text>
