@@ -44,7 +44,7 @@ async function openPostServiceWhatsApp(phone, name) {
   if (num.startsWith('0')) num = num.slice(1);
   if (!num.startsWith('56')) num = '56' + num;
   const msg = encodeURIComponent(
-    `Gracias ${name} por visitarnos en Salon Men Saúl Fino ✂️ ` +
+    `Gracias ${name} por visitarnos en Salón Men ✂️ ` +
     `Si tienes un momento, te agradecemos una reseña en Google. ¡Hasta pronto!`
   );
   try {
