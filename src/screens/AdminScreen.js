@@ -10,7 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from '../constants';
 import { useBarberos } from '../hooks/useBarberos';
 import { api } from '../services/api';
-import { botonesPago, comisionPreview } from '../services/pagos';
+import { botonesPago, comisionPreview, etiquetaPago } from '../services/pagos';
 const { width } = Dimensions.get('window');
 
 function minsHasta(hora) {
@@ -850,7 +850,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
                     <Text style={s.pendNom}>{r.snom}</Text>
                     <Text style={s.pendSub}>
                       {r.bnom} · {r.hora?.slice(0,5)} ·{' '}
-                      <Text style={{ color: pagoColor }}>{r.pago}</Text>
+                      <Text style={{ color: pagoColor }}>{etiquetaPago(catalogo, r.pago)}</Text>
                     </Text>
                     <Text style={s.pendPrecio}>${fmt(r.precio)}</Text>
                   </View>

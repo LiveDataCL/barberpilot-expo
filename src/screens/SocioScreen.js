@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { API_URL, COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
+import { etiquetaPago } from '../services/pagos';
 
 const PERIODOS = [
   { id: 'hoy',    label: 'Hoy'         },
@@ -362,7 +363,7 @@ export default function SocioScreen() {
                     borderBottomColor: COLORS.border }}>
                     <Text style={{ flex: 1, fontSize: 14, color: COLORS.text }}>
                       {pago === 'efectivo' ? '💵' : pago === 'debito' ? '💳' : '📲'}
-                      {' '}{pago}
+                      {' '}{etiquetaPago(null, pago)}
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: '600',
                       color, marginRight: 12 }}>
