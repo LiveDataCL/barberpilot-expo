@@ -6,6 +6,7 @@ import {
 import { COLORS, fmt, fmtM, hoy, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import MetaBanner from './MetaBanner';
+import DesgloseServicio from '../components/DesgloseServicio';
 import { cargarIngresoPorServicio } from '../services/ingresoPorServicio';
 import { updateDayNotification } from '../services/DayNotification';
 import { api } from '../services/api';
@@ -308,19 +309,18 @@ export default function HoyScreen({ barbero, catalogo }) {
               {[...regs].sort((a,b)=>(b.ts||0)-(a.ts||0)).map(r => {
                 const ps = PAGO_STYLE[r.pago]||PAGO_STYLE.efectivo;
                 return (
-                  <View key={r.id} style={s.svcRow}>
-                    <View style={{width:60}}>
+                  <View key={r.id} style={s.svcCard}>
+                    <View style={s.svcHead}>
                       <Text style={s.svcFecha}>
                         {periodo==='semana'
                           ? (r.fecha_display||r.fecha||'').slice(0,5)
                           : r.hora?.slice(0,5)||'--'}
                       </Text>
+                      <View style={[s.pagoBadge,{backgroundColor:ps.bg}]}>
+                        <Text style={[s.pagoTxt,{color:ps.color}]}>{ps.label}</Text>
+                      </View>
                     </View>
-                    <Text style={s.svcNom} numberOfLines={1}>{r.snom}</Text>
-                    <View style={[s.pagoBadge,{backgroundColor:ps.bg}]}>
-                      <Text style={[s.pagoTxt,{color:ps.color}]}>{ps.label}</Text>
-                    </View>
-                    <Text style={s.svcBB}>${fmt((r.bb||0)+(r.propina||0))}</Text>
+                    <DesgloseServicio registro={r} />
                   </View>
                 );
               })}
@@ -451,6 +451,8 @@ const s = StyleSheet.create({
 
   svcRow:    { flexDirection:'row', alignItems:'center', paddingVertical:11,
     borderBottomWidth:1, borderBottomColor:COLORS.border },
+  svcCard:   { paddingVertical:11, borderBottomWidth:1, borderBottomColor:COLORS.border },
+  svcHead:   { flexDirection:'row', alignItems:'center', marginBottom:6 },
   svcFecha:  { fontSize:12, color:COLORS.text3 },
   svcNom:    { flex:1, fontSize:15, color:COLORS.text, fontWeight:'500' },
   pagoBadge: { borderRadius:20, paddingHorizontal:8, paddingVertical:3, marginHorizontal:6 },
