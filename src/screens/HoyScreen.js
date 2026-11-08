@@ -12,21 +12,6 @@ import { updateDayNotification } from '../services/DayNotification';
 import { api } from '../services/api';
 import { etiquetaPago, iconoPago } from '../services/pagos';
 
-const KPI_LABELS = {
-  apertura:   'Apertura',
-  estacion:   'Estación de trabajo',
-  aseo_entre: 'Aseo entre servicios',
-  aseo_comun: 'Aseo áreas comunes',
-  visajismo:  'Visajismo',
-  upselling:  'Upselling',
-  atencion:   'Atención al cliente',
-  relacion:   'Relación con el cliente',
-  uniforme:   'Uniforme',
-  cierre:     'Cierre de servicio',
-};
-
-const KPI_MAX = 35; // 10 métricas × max 3.5 pts
-
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
 const PERIODOS = [
