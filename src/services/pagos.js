@@ -17,6 +17,8 @@ const ESTILO_OTRO = { icono: '💳', color: COLORS.text2, bg: 'rgba(255,255,255,
 // Payment keys the server accepts, used only when the server list hasn't
 // arrived yet (no names or rates are assumed; the server still validates).
 const CLAVES_BASE = ['efectivo', 'debito', 'transferencia'];
+// Names shown when the server list hasn't arrived (the stored key 'debito' is the card method: its label is "Tarjeta").
+const ETIQUETA_BASE = { efectivo: 'Efectivo', debito: 'Tarjeta', transferencia: 'Transferencia' };
 
 function lista(catalogo) {
   return catalogo && Array.isArray(catalogo.metodosPago) ? catalogo.metodosPago : null;
@@ -27,7 +29,7 @@ export function metodoPago(catalogo, clave) {
 }
 export function etiquetaPago(catalogo, clave) {
   const m = metodoPago(catalogo, clave);
-  return m ? m.etiqueta : clave;
+  return m && m.etiqueta && m.etiqueta !== clave ? m.etiqueta : (ETIQUETA_BASE[clave] || clave);
 }
 export function iconoPago(clave) {
   return (ESTILO_PAGO[clave] || ESTILO_OTRO).icono;
@@ -35,7 +37,7 @@ export function iconoPago(clave) {
 // Buttons for the active methods, in the server's order.
 export function botonesPago(catalogo) {
   const l = lista(catalogo);
-  const activos = l ? l.filter(m => m.activo) : CLAVES_BASE.map(clave => ({ clave, etiqueta: clave }));
+  const activos = l ? l.filter(m => m.activo) : CLAVES_BASE.map(clave => ({ clave, etiqueta: ETIQUETA_BASE[clave] }));
   return activos.map(m => {
     const e = ESTILO_PAGO[m.clave] || ESTILO_OTRO;
     return { id: m.clave, label: `${e.icono} ${m.etiqueta}`, color: e.color, bg: e.bg };

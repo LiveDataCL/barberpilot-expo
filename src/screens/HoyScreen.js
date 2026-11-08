@@ -46,7 +46,7 @@ const PERIODOS = [
 
 const PAGO_STYLE = {
   efectivo:      { bg: 'rgba(77,184,122,.15)',  color: '#4db87a', label: 'EF' },
-  debito:        { bg: 'rgba(85,130,212,.15)',  color: '#5580d4', label: 'DB' },
+  debito:        { bg: 'rgba(85,130,212,.15)',  color: '#5580d4', label: 'TARJ' },
   transferencia: { bg: 'rgba(201,168,76,.15)',  color: '#c9a84c', label: 'TR' },
 };
 
