@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { COLORS, fmt, hoy } from '../constants';
 import { api } from '../services/api';
+import DesgloseServicio from '../components/DesgloseServicio';
 import { etiquetaPago, iconoPago } from '../services/pagos';
 
 export default function LiquidacionScreen({ barbero, catalogo }) {
@@ -93,12 +94,9 @@ export default function LiquidacionScreen({ barbero, catalogo }) {
       <View style={s.card}>
         <Text style={s.cardTitle}>SERVICIOS DEL DÍA</Text>
         {[...regs].sort((a, b) => (b.ts || 0) - (a.ts || 0)).map((r) => (
-          <View key={r.id} style={s.svcRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.svcNom}>{r.snom}</Text>
-              <Text style={s.svcHora}>{r.hora?.slice(0,5)} · {r.pago}</Text>
-            </View>
-            <Text style={s.svcBB}>${fmt(r.bb + (r.propina||0))}</Text>
+          <View key={r.id} style={s.svcCard}>
+            <Text style={s.svcHora}>{r.hora?.slice(0,5)} · {r.pago}</Text>
+            <DesgloseServicio registro={r} />
           </View>
         ))}
       </View>
@@ -137,7 +135,8 @@ const s = StyleSheet.create({
   svcRow:   { flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   svcNom:   { fontSize: 15, color: COLORS.text, fontWeight: '500' },
-  svcHora:  { fontSize: 12, color: COLORS.text3, marginTop: 3 },
+  svcCard:  { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  svcHora:  { fontSize: 12, color: COLORS.text3, marginBottom: 6 },
   svcBB:    { fontSize: 16, color: COLORS.ok, fontWeight: '600',
     fontVariant: ['tabular-nums'] },
 });
