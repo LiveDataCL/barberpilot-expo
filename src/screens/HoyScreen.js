@@ -12,29 +12,6 @@ import { updateDayNotification } from '../services/DayNotification';
 import { api } from '../services/api';
 import { etiquetaPago, iconoPago } from '../services/pagos';
 
-const KPI_LABELS = {
-  apertura:   'Apertura',
-  estacion:   'Estación de trabajo',
-  aseo_entre: 'Aseo entre servicios',
-  aseo_comun: 'Aseo áreas comunes',
-  visajismo:  'Visajismo',
-  upselling:  'Upselling',
-  atencion:   'Atención al cliente',
-  relacion:   'Relación con el cliente',
-  uniforme:   'Uniforme',
-  cierre:     'Cierre de servicio',
-};
-
-const KPI_MAX = 35; // 10 métricas × max 3.5 pts
-
-function calcBonus(disq, pct) {
-  if (disq) return 0;
-  if (pct >= 90) return 150000;
-  if (pct >= 75) return 100000;
-  if (pct >= 60) return 50000;
-  return 0;
-}
-
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
 
 const PERIODOS = [
@@ -185,6 +162,7 @@ export default function HoyScreen({ barbero, catalogo }) {
   // Stats calculados
   const n    = regs.length;
   const fact = regs.reduce((a,r) => a+(r.precio||0), 0);
+  // Tips are part of the barber's personal take-home only. They are never part of any business goal, progress or billing figure.
   const bb   = regs.reduce((a,r) => a+(r.bb||0)+(r.propina||0), 0);
   const prop = regs.reduce((a,r) => a+(r.propina||0), 0);
   const tk   = n>0 ? Math.round(fact/n) : 0;

@@ -6,6 +6,7 @@ import {
 import { API_URL, COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import { etiquetaPago } from '../services/pagos';
+import { avanceMeta, textosProyeccion, etiquetaServiciosPeriodo } from '../services/avanceMeta';
 
 const PERIODOS = [
   { id: 'hoy',    label: 'Hoy'         },
@@ -133,14 +134,15 @@ export default function SocioScreen() {
 
       // Proyección
       if (mesR.ok && mesR.datos) {
-        // like for like: the projection is on SERVICES, so the figure beside it is services too; products are shown apart
+        // like for like: on the old rule the projection is on SERVICES, so the figure beside it is services too; products are shown apart.
+        // When the API marks the projection with regla_avance = 'barbero_asociado' (services + products of barbers), avanceMeta() gives the billing figure of the SAME basis.
         const mesFact = mesR.datos.reduce((a, r) => a + (r.facturado_servicios || 0), 0);
         const mesProd = mesR.datos.reduce((a, r) => a + (r.facturado_productos || 0), 0);
         // The projection comes from the API (weighted open days: Saturdays count less, Sundays and holidays not at all).
         // This screen keeps no formula of its own; null = the server could not compute it.
         const pb = mesR.proyeccion;
         const proy = pb && pb.proyeccion !== null && pb.proyeccion !== undefined ? pb.proyeccion : null;
-        setMesDatos({ fact: mesFact, prod: mesProd, proy, preliminar: !!(pb && pb.preliminar) });
+        setMesDatos({ fact: mesFact, prod: mesProd, proy, preliminar: !!(pb && pb.preliminar), avance: avanceMeta(pb) });
       }
     } catch (e) {
       console.error('SocioScreen cargar error:', e);
@@ -183,12 +185,12 @@ export default function SocioScreen() {
       {/* Proyección mensual */}
       {mesDatos && (
         <View style={s.proyCard}>
-          <Text style={s.proyLbl}>PROYECCION SERVICIOS {mesPeriodo()}</Text>
+          <Text style={s.proyLbl}>{textosProyeccion({ avance: mesDatos.avance, mes: mesPeriodo(), old: { fact: mesDatos.fact, prod: mesDatos.prod }, fmt }).titulo}</Text>
           <Text style={s.proyVal}>{mesDatos.proy === null ? '—' : '$' + fmt(mesDatos.proy)}</Text>
           {mesDatos.proy !== null && mesDatos.preliminar && (
             <Text style={s.proyActual}>Preliminar: aún pocos días del mes</Text>
           )}
-          <Text style={s.proyActual}>Servicios del mes: ${fmt(mesDatos.fact)} · Productos: ${fmt(mesDatos.prod)}</Text>
+          <Text style={s.proyActual}>{textosProyeccion({ avance: mesDatos.avance, mes: mesPeriodo(), old: { fact: mesDatos.fact, prod: mesDatos.prod }, fmt }).detalle}</Text>
         </View>
       )}
 
@@ -200,7 +202,7 @@ export default function SocioScreen() {
           <Text style={[s.proyVal, { color: COLORS.ok, fontSize: 42 }]}>
             ${fmt(datos.fact)}
           </Text>
-          <Text style={s.proyActual}>Servicios (base de meta y proyección): ${fmt(datos.factSvc)}</Text>
+          <Text style={s.proyActual}>{etiquetaServiciosPeriodo(mesDatos && mesDatos.avance)}: ${fmt(datos.factSvc)}</Text>
           <Text style={s.proyActual}>Productos: ${fmt(datos.factProd)}</Text>
         </View>
       )}
