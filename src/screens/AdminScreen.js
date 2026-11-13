@@ -341,20 +341,18 @@ export default function AdminScreen({ onLogout, catalogo }) {
     };
     setRegEnviando(true);
     try {
-      // Admin registra directo como confirmado
-      const res = await fetch(`${API_URL}/registros`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(reg),
-      }).then(r => r.json());
-      if (res.ok) {
+      // Admin registra directo como confirmado (authenticated call: the session token is sent by api.registrar)
+      const res = await api.registrar(reg);
+      if (!res.ok) {
+        Alert.alert('No se registró', res.error === 'duplicate' ? 'Ese servicio ya estaba registrado.' : 'Intenta de nuevo.');
+      } else {
         setRegExito(true);
         setRegPropina(''); setRegCustomNom(''); setRegCustomPrecio('');
         await sendPushToBarber(regBid, '✂️ Nuevo servicio', svc.id==='custom' ? regCustomNom : svc.nom);
         setTimeout(() => setRegExito(false), 2500);
         cargar(true);
       }
-    } catch { Alert.alert('Error al registrar'); }
+    } catch (e) { Alert.alert('Error al registrar', e.message || 'Intenta de nuevo.'); }
     setRegEnviando(false);
   };
 
