@@ -66,11 +66,6 @@ export const api = {
   subirFoto: (regId, base64, mimeType = 'image/jpeg') =>
     apiFetch('/comprobantes', { method: 'POST', body: JSON.stringify({ regId, imagen: base64, mimeType }) }),
 
-  pendientes: (bid) =>
-    apiFetch('/pendientes').then((r) =>
-      ({ ...r, pendientes: (r.pendientes || []).filter((p) => p.bid === bid) })
-    ),
-
   queue:        (barberId)       => apiFetch(`/queue?barber=${barberId}`),
   queueStats:   ()               => apiFetch('/queue/stats'),
   updateStatus: (id, status) =>

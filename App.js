@@ -26,7 +26,6 @@ import MesScreen         from './src/screens/MesScreen';
 import ProgresoScreen    from './src/screens/ProgresoScreen';
 import LiquidacionScreen from './src/screens/LiquidacionScreen';
 import ConfigScreen      from './src/screens/ConfigScreen';
-import MensajesScreen    from './src/screens/MensajesScreen';
 import AdminScreen       from './src/screens/AdminScreen';
 import SocioScreen       from './src/screens/SocioScreen';
 import TendenciasScreen  from './src/screens/TendenciasScreen';
@@ -60,7 +59,6 @@ const TABS_BARBERO = [
   { id: 'mes',        label: 'Mi Mes',    icon: 'bar-chart-2' },
   { id: 'tendencias', label: 'Tendenc.',  icon: 'trending-up' },
   { id: 'cobrar',     label: 'Cobrar',    icon: 'dollar-sign' },
-  { id: 'mensajes',   label: 'Notas',     icon: 'message-square' },
   { id: 'config',     label: 'Config',    icon: 'settings'    },
 ];
 
@@ -423,7 +421,6 @@ export default function App() {
       case 'mes':        return <MesScreen         barbero={usuario} catalogo={catalogo} />;
       case 'tendencias': return <TendenciasScreen  barbero={usuario} />;
       case 'cobrar':     return <LiquidacionScreen barbero={usuario} catalogo={catalogo} />;
-      case 'mensajes':   return <MensajesScreen    barbero={usuario} />;
       case 'config':     return <ConfigScreen      barbero={usuario} onLogout={logout} catalogo={catalogo} />;
       default:           return <HoyScreen         barbero={usuario} catalogo={catalogo} />;
     }
