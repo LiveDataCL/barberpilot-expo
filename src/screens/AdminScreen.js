@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, TextInput, Alert,
@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from '../constants';
 import { useBarberos } from '../hooks/useBarberos';
 import { api } from '../services/api';
+import { kpisPorBarbero } from '../services/kpisBarberos';
 import { botonesPago, comisionPreview, etiquetaPago } from '../services/pagos';
 const { width } = Dimensions.get('window');
 
@@ -49,6 +50,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const preciosCargando = !catalogo || catalogo.cargando === true;
   const [tab, setTab]             = useState('resumen');
   const [resumen, setResumen]     = useState(null);
+  const [regsHoy, setRegsHoy]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -88,6 +90,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const recLookupTimer = useRef(null);
 
   const { barberos } = useBarberos();
+  const kpisHoy = useMemo(() => kpisPorBarbero(regsHoy, barberos), [regsHoy, barberos]);
 
   const cargarAgendaHoy = useCallback(async () => {
     if (!barberos.length) return;
@@ -133,20 +136,13 @@ export default function AdminScreen({ onLogout, catalogo }) {
       let allRegs = [];
       results.forEach(r => { if (r.ok && r.registros) allRegs = allRegs.concat(r.registros); });
 
-      // KPIs por barbero
-      const kpisBarbero = {};
-      barberos.forEach(b => { kpisBarbero[b.bid] = { svc:0, fact:0, bb:0, servicios:{} }; });
+      // KPIs por barbero (shared aggregation, same as the Resumen cards)
+      const kpisBarbero = kpisPorBarbero(allRegs, barberos);
       const porHora = {}; const porDia = {};
       for (let h=10;h<=19;h++) porHora[h]={svc:0,fact:0};
       for (let d=0;d<=6;d++)   porDia[d]={svc:0,fact:0};
 
       allRegs.forEach(r => {
-        if (kpisBarbero[r.bid]) {
-          kpisBarbero[r.bid].svc++;
-          kpisBarbero[r.bid].fact += r.precio||0;
-          kpisBarbero[r.bid].bb   += (r.bb||0)+(r.propina||0);
-          kpisBarbero[r.bid].servicios[r.snom] = (kpisBarbero[r.bid].servicios[r.snom]||0)+1;
-        }
         const h = parseInt((r.hora||'00:00').slice(0,2));
         if (porHora[h]) { porHora[h].svc++; porHora[h].fact += r.precio||0; }
         if (r.fecha) {
@@ -162,8 +158,12 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const resRes = await fetch(`${API_URL}/admin/resumen`).then(r => r.json());
+      const [resRes, diaRes] = await Promise.all([
+        fetch(`${API_URL}/admin/resumen`).then(r => r.json()),
+        fetch(`${API_URL}/registros/dia?fecha=${hoy()}`).then(r => r.json()),
+      ]);
       if (resRes.ok)  setResumen(resRes);
+      if (diaRes.ok && Array.isArray(diaRes.registros)) setRegsHoy(diaRes.registros);
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -660,9 +660,8 @@ export default function AdminScreen({ onLogout, catalogo }) {
         {/* Resumen por barbero hoy */}
         <Text style={[s.secLbl, { marginTop: 24 }]}>PRODUCCIÓN HOY POR BARBERO</Text>
         {barberos.map(b => {
-          const regsB = (resumen?.registros_hoy || []).filter(r => r.bid === b.bid);
-          const svcB  = resumen?.barberos_hoy?.[b.bid]?.svc || 0;
-          const bbB   = resumen?.barberos_hoy?.[b.bid]?.bb  || 0;
+          const svcB  = kpisHoy[b.bid]?.svc || 0;
+          const bbB   = kpisHoy[b.bid]?.bb  || 0;
           return (
             <View key={b.bid} style={[s.barberoPerfil, { marginBottom: 8 }]}>
               <View style={[s.accionAvatar, { backgroundColor: b.bg, width: 44, height: 44, borderRadius: 22 }]}>

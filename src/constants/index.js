@@ -32,7 +32,7 @@ export const BARBEROS_FALLBACK = [
 ];
 
 export const ADMIN = {
-  bid: 'admin', nombre: 'Admin', pin: '000000', color: '#c9a84c',
+  bid: 'admin', nombre: 'Admin', color: '#c9a84c',
   letra: '⚡', bg: 'rgba(201,168,76,.2)', rol: 'admin',
   useBiometrics: true,
 };
