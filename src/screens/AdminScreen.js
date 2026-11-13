@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, TextInput, Alert,
-  Modal, Dimensions, Image,
+  Dimensions, Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -39,9 +39,7 @@ const TABS_ADMIN = [
   { id: 'agenda',     label: 'Agenda',    icon: '📅' },
   { id: 'registrar',  label: 'Registrar', icon: '➕' },
   { id: 'recepcion',  label: 'Recepción', icon: '🛎️' },
-  { id: 'aprobar',    label: 'Aprobar',   icon: '✅' },
   { id: 'tendencias', label: 'Análisis',  icon: '🔥' },
-  { id: 'mensajes',   label: 'Mensajes',  icon: '💬' },
   { id: 'barberos',   label: 'Perfiles',  icon: '👤' },
 ];
 
@@ -51,16 +49,9 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const preciosCargando = !catalogo || catalogo.cargando === true;
   const [tab, setTab]             = useState('resumen');
   const [resumen, setResumen]     = useState(null);
-  const [pendientes, setPendientes] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [badgeAprob, setBadgeAprob] = useState(0);
 
-  // ── Mensajes ────────────────────────────────────────────────
-  const [msgBid, setMsgBid]       = useState(null);
-  const [msgTexto, setMsgTexto]   = useState('');
-  const [enviando, setEnviando]   = useState(false);
-  const [modalMsg, setModalMsg]   = useState(false);
   // Registro de servicio por admin
   const [regBid,     setRegBid]     = useState('b1');
   const [regSid,     setRegSid]     = useState('s01');
@@ -171,15 +162,8 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const cargar = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [resRes, pendRes] = await Promise.all([
-        fetch(`${API_URL}/admin/resumen`).then(r => r.json()),
-        fetch(`${API_URL}/pendientes`).then(r => r.json()),
-      ]);
+      const resRes = await fetch(`${API_URL}/admin/resumen`).then(r => r.json());
       if (resRes.ok)  setResumen(resRes);
-      if (pendRes.ok) {
-        setPendientes(pendRes.pendientes || []);
-        setBadgeAprob(pendRes.total || 0);
-      }
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -194,69 +178,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
   useEffect(() => {
     if (tab === 'tendencias' && !tendData) cargarTendencias();
   }, [tab]);
-
-  const aprobar = async (id) => {
-    try {
-      await fetch(`${API_URL}/registros/${id}/estado`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'confirmado' }),
-      });
-      cargar(true);
-    } catch {}
-  };
-
-  const rechazar = async (id) => {
-    Alert.alert('Rechazar servicio', '¿Confirmas el rechazo?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Rechazar', style: 'destructive', onPress: async () => {
-        await fetch(`${API_URL}/registros/${id}/estado`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ estado: 'rechazado' }),
-        });
-        cargar(true);
-      }},
-    ]);
-  };
-
-  const aprobarTodos = () => {
-    Alert.alert('Aprobar todos', `¿Aprobar los ${pendientes.length} servicios pendientes?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Aprobar todos', onPress: async () => {
-        await Promise.all(pendientes.map(p =>
-          fetch(`${API_URL}/registros/${p.id}/estado`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ estado: 'confirmado' }),
-          })
-        ));
-        cargar(true);
-      }},
-    ]);
-  };
-
-  const enviarMensaje = async () => {
-    if (!msgTexto.trim() || !msgBid) return;
-    setEnviando(true);
-    try {
-      const b = barberos.find(x => x.bid === msgBid);
-      await fetch(`${API_URL}/mensajes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bid_destino: msgBid,
-          bnom_destino: b?.nombre || msgBid,
-          contenido: msgTexto.trim(),
-          bid_origen: 'admin',
-        }),
-      });
-      setMsgTexto('');
-      setModalMsg(false);
-      Alert.alert('✓ Enviado', `Mensaje enviado a ${b?.nombre}`);
-    } catch { Alert.alert('Error', 'No se pudo enviar'); }
-    setEnviando(false);
-  };
 
   const handlePasarAColaAdmin = async (cita, barb) => {
     const key = 'apt_' + cita.id;
@@ -731,42 +652,10 @@ export default function AdminScreen({ onLogout, catalogo }) {
             <Text style={s.statLbl}>Facturado</Text>
           </View>
           <View style={s.statCard}>
-            <Text style={[s.statVal, { color: COLORS.red }]}>
-              {badgeAprob}
-            </Text>
-            <Text style={s.statLbl}>Pendientes</Text>
-          </View>
-          <View style={s.statCard}>
             <Text style={s.statVal}>${fmt(resumen?.hoy?.total_barberos || 0)}</Text>
             <Text style={s.statLbl}>A barberos</Text>
           </View>
         </View>
-
-        {/* Accesos rápidos */}
-        <Text style={[s.secLbl, { marginTop: 20 }]}>ACCIONES RÁPIDAS</Text>
-        <View style={s.accionGrid}>
-          {barberos.map(b => (
-            <TouchableOpacity key={b.bid} style={s.accionCard}
-              onPress={() => { setMsgBid(b.bid); setModalMsg(true); }}>
-              <View style={[s.accionAvatar, { backgroundColor: b.bg }]}>
-                <Text style={[s.accionLetra, { color: b.color }]}>{b.letra}</Text>
-              </View>
-              <Text style={s.accionNom}>{b.nombre}</Text>
-              <Text style={s.accionSub}>Enviar nota</Text>
-              <Text style={{ fontSize: 18, marginTop: 4 }}>📋</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Pendientes urgentes */}
-        {badgeAprob > 0 && (
-          <TouchableOpacity style={s.urgente} onPress={() => setTab('aprobar')}>
-            <Text style={s.urgenteTxt}>
-              ⚠️ {badgeAprob} servicio{badgeAprob !== 1 ? 's' : ''} esperando aprobación
-            </Text>
-            <Text style={s.urgenteLink}>Ver ahora →</Text>
-          </TouchableOpacity>
-        )}
 
         {/* Resumen por barbero hoy */}
         <Text style={[s.secLbl, { marginTop: 24 }]}>PRODUCCIÓN HOY POR BARBERO</Text>
@@ -783,12 +672,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
                 <Text style={s.barberoPNom}>{b.nombre}</Text>
                 <Text style={s.barberoPSub}>{svcB} servicios · ${fmt(bbB)} ingresos</Text>
               </View>
-              <TouchableOpacity
-                style={{ backgroundColor: 'rgba(201,168,76,.12)', borderRadius: 8,
-                  paddingHorizontal: 12, paddingVertical: 8 }}
-                onPress={() => { setMsgBid(b.bid); setModalMsg(true); }}>
-                <Text style={{ fontSize: 16 }}>📋</Text>
-              </TouchableOpacity>
             </View>
           );
         })}
@@ -798,8 +681,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
         <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
           {[
             { id: 'registrar', label: 'Registrar', icon: '➕', color: COLORS.gold },
-            { id: 'aprobar',   label: 'Aprobar',   icon: '✅', color: COLORS.ok },
-            { id: 'mensajes',  label: 'Mensajes',  icon: '💬', color: COLORS.blue },
             { id: 'barberos',  label: 'Barberos',  icon: '✂️', color: COLORS.text2 },
           ].map(item => (
             <TouchableOpacity key={item.id}
@@ -814,85 +695,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
           ))}
         </View>
 
-      </View>
-    </ScrollView>
-  );
-
-  const renderAprobar = () => (
-    <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing}
-        onRefresh={() => { setRefreshing(true); cargar(true); }}
-        tintColor={COLORS.gold} colors={[COLORS.gold]} />}
-    >
-      <View style={s.content}>
-        {pendientes.length === 0 ? (
-          <View style={s.empty}>
-            <Text style={{ fontSize: 48, marginBottom: 12 }}>✅</Text>
-            <Text style={s.emptyTxt}>Todo al día — sin pendientes</Text>
-          </View>
-        ) : (
-          <>
-            <View style={s.rowBetween}>
-              <Text style={s.secLbl}>{pendientes.length} PENDIENTE{pendientes.length !== 1 ? 'S' : ''}</Text>
-              <TouchableOpacity style={s.btnAprobarTodos} onPress={aprobarTodos}>
-                <Text style={s.btnAprobarTodosTxt}>✓ Aprobar todos</Text>
-              </TouchableOpacity>
-            </View>
-            {pendientes.map(r => {
-              const bb = parseInt(r.bb || 0) + parseInt(r.propina || 0);
-              const pagoColor = r.pago === 'efectivo' ? COLORS.ok
-                : r.pago === 'debito' ? COLORS.blue : COLORS.gold;
-              return (
-                <View key={r.id} style={s.pendCard}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.pendNom}>{r.snom}</Text>
-                    <Text style={s.pendSub}>
-                      {r.bnom} · {r.hora?.slice(0,5)} ·{' '}
-                      <Text style={{ color: pagoColor }}>{etiquetaPago(catalogo, r.pago)}</Text>
-                    </Text>
-                    <Text style={s.pendPrecio}>${fmt(r.precio)}</Text>
-                  </View>
-                  <View style={s.pendMonto}>
-                    <Text style={s.pendBB}>${fmt(bb)}</Text>
-                    <Text style={s.pendBBLbl}>barbero</Text>
-                  </View>
-                  <View style={s.pendBtns}>
-                    <TouchableOpacity style={s.btnOk} onPress={() => aprobar(r.id)}>
-                      <Text style={s.btnOkTxt}>✓</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.btnNo} onPress={() => rechazar(r.id)}>
-                      <Text style={s.btnNoTxt}>✗</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })}
-          </>
-        )}
-      </View>
-    </ScrollView>
-  );
-
-  const renderMensajes = () => (
-    <ScrollView>
-      <View style={s.content}>
-        <Text style={s.secLbl}>ENVIAR NOTA A BARBERO</Text>
-        <Text style={{ fontSize: 13, color: COLORS.text3, marginBottom: 16 }}>
-          El mensaje llega como notificación push y queda en el historial de la app.
-        </Text>
-        {barberos.map(b => (
-          <TouchableOpacity key={b.bid} style={s.msgBarberoBtn}
-            onPress={() => { setMsgBid(b.bid); setModalMsg(true); }}>
-            <View style={[s.accionAvatar, { backgroundColor: b.bg, width: 44, height: 44, borderRadius: 22 }]}>
-              <Text style={[s.accionLetra, { color: b.color, fontSize: 18 }]}>{b.letra}</Text>
-            </View>
-            <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={s.msgBarberoNom}>{b.nombre}</Text>
-              <Text style={s.msgBarberoPush}>Toca para enviar una nota</Text>
-            </View>
-            <Text style={{ fontSize: 22, color: COLORS.gold }}>›</Text>
-          </TouchableOpacity>
-        ))}
       </View>
     </ScrollView>
   );
@@ -1069,10 +871,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
                 <Text style={s.statLbl}>Mes</Text>
               </View>
             </View>
-            <TouchableOpacity style={[s.btnAprobarTodos, { marginTop: 14 }]}
-              onPress={() => { setMsgBid(verBarbero.bid); setModalMsg(true); }}>
-              <Text style={s.btnAprobarTodosTxt}>📋 Enviar nota a {verBarbero.nombre}</Text>
-            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -1147,9 +945,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
     );
   };
 
-  // ── MODAL MENSAJE ────────────────────────────────────────────
-  const b = barberos.find(x => x.bid === msgBid);
-
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* Nav tabs admin */}
@@ -1158,11 +953,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
           <TouchableOpacity key={t.id} style={[s.adminTab, tab === t.id && s.adminTabOn]}
             onPress={() => setTab(t.id)}>
             <Text style={s.adminTabIcon}>{t.icon}</Text>
-            {t.id === 'aprobar' && badgeAprob > 0 && (
-              <View style={s.badge}>
-                <Text style={s.badgeTxt}>{badgeAprob}</Text>
-              </View>
-            )}
             {t.id === 'agenda' && badgeAgenda > 0 && (
               <View style={[s.badge, { backgroundColor: COLORS.gold }]}>
                 <Text style={[s.badgeTxt, { color: COLORS.bg }]}>{badgeAgenda}</Text>
@@ -1183,48 +973,10 @@ export default function AdminScreen({ onLogout, catalogo }) {
         tab === 'agenda'     ? renderAgenda()     :
         tab === 'registrar'  ? renderRegistrar()  :
         tab === 'recepcion'  ? renderRecepcion()  :
-        tab === 'aprobar'    ? renderAprobar()    :
         tab === 'tendencias' ? renderTendAdmin()  :
-        tab === 'mensajes'   ? renderMensajes()   :
         renderBarberos()
       )}
 
-      {/* Modal enviar mensaje */}
-      <Modal visible={modalMsg} transparent animationType="slide">
-        <View style={s.modalOverlay}>
-          <View style={s.modalBox}>
-            <Text style={s.modalTitle}>
-              Nota para {b?.nombre}
-            </Text>
-            <TextInput
-              style={s.msgInput}
-              value={msgTexto}
-              onChangeText={setMsgTexto}
-              placeholder="Escribe la nota aquí..."
-              placeholderTextColor={COLORS.text3}
-              multiline
-              numberOfLines={4}
-              autoFocus
-            />
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: COLORS.s2, flex: 1 }]}
-                onPress={() => { setModalMsg(false); setMsgTexto(''); }}>
-                <Text style={{ color: COLORS.text2, fontWeight: '600' }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.modalBtn, { backgroundColor: COLORS.gold, flex: 2 }]}
-                onPress={enviarMensaje} disabled={enviando}>
-                {enviando
-                  ? <ActivityIndicator color={COLORS.bg} />
-                  : <Text style={{ color: COLORS.bg, fontWeight: '700', fontSize: 15 }}>
-                      📤 Enviar
-                    </Text>
-                }
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1252,53 +1004,18 @@ const s = StyleSheet.create({
   statLbl:  { fontSize: 11, color: COLORS.text3, marginTop: 4,
     textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Montserrat_400Regular' },
 
-  accionGrid: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   accionCard: { flex: 1, backgroundColor: COLORS.s2, borderRadius: 14,
     borderWidth: 1, borderColor: COLORS.border, padding: 14, alignItems: 'center' },
   accionAvatar: { width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   accionLetra: { fontSize: 20, fontWeight: '700' },
   accionNom:  { fontSize: 14, color: COLORS.text, fontWeight: '600' },
-  accionSub:  { fontSize: 11, color: COLORS.text3, marginTop: 2 },
 
-  urgente:  { backgroundColor: 'rgba(224,85,85,.1)', borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(224,85,85,.3)',
-    padding: 16, marginTop: 8, flexDirection: 'row',
-    justifyContent: 'space-between', alignItems: 'center' },
-  urgenteTxt: { fontSize: 14, color: '#e05555', flex: 1 },
-  urgenteLink:{ fontSize: 14, color: COLORS.gold, fontWeight: '700' },
 
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 14 },
-  btnAprobarTodos: { backgroundColor: 'rgba(77,184,122,.15)',
-    borderRadius: 10, borderWidth: 1, borderColor: 'rgba(77,184,122,.3)',
-    paddingHorizontal: 14, paddingVertical: 9 },
-  btnAprobarTodosTxt: { fontSize: 13, color: COLORS.ok, fontWeight: '700' },
 
-  pendCard: { flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
-    borderColor: COLORS.border, padding: 14, marginBottom: 10, gap: 10 },
-  pendNom:  { fontSize: 15, color: COLORS.text, fontWeight: '600' },
-  pendSub:  { fontSize: 12, color: COLORS.text3, marginTop: 2 },
-  pendPrecio: { fontSize: 13, color: COLORS.text2, marginTop: 4 },
-  pendMonto:{ alignItems: 'center', minWidth: 60 },
-  pendBB:   { fontSize: 16, color: COLORS.ok, fontWeight: '600' },
-  pendBBLbl:{ fontSize: 10, color: COLORS.text3, textTransform: 'uppercase' },
-  pendBtns: { gap: 6 },
-  btnOk:    { backgroundColor: 'rgba(77,184,122,.15)', borderRadius: 8,
-    borderWidth: 1, borderColor: 'rgba(77,184,122,.3)',
-    width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  btnOkTxt: { fontSize: 18, color: COLORS.ok, fontWeight: '700' },
-  btnNo:    { backgroundColor: 'rgba(224,85,85,.1)', borderRadius: 8,
-    borderWidth: 1, borderColor: 'rgba(224,85,85,.25)',
-    width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  btnNoTxt: { fontSize: 18, color: COLORS.red, fontWeight: '700' },
 
-  msgBarberoBtn: { flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
-    borderColor: COLORS.border, padding: 16, marginBottom: 10 },
-  msgBarberoNom: { fontSize: 18, color: COLORS.text, fontWeight: '600' },
-  msgBarberoPush:{ fontSize: 12, color: COLORS.text3, marginTop: 2 },
 
   barberoPerfil: { flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1,
@@ -1329,16 +1046,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 4 },
   badgeTxt: { fontSize: 10, color: '#fff', fontWeight: '700' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.7)',
-    justifyContent: 'flex-end' },
-  modalBox:  { backgroundColor: COLORS.s1, borderTopLeftRadius: 20,
-    borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalTitle:{ fontSize: 18, color: COLORS.text, fontWeight: '600',
-    marginBottom: 16, letterSpacing: 0.5 },
-  msgInput:  { backgroundColor: COLORS.s2, borderRadius: 12,
-    borderWidth: 1, borderColor: COLORS.border2, color: COLORS.text,
-    fontSize: 16, padding: 14, minHeight: 100, textAlignVertical: 'top' },
-  modalBtn:  { padding: 14, borderRadius: 12, alignItems: 'center' },
   input:     { backgroundColor: COLORS.s2, borderRadius: 10, borderWidth: 1,
     borderColor: COLORS.border2, color: COLORS.text, fontSize: 16, padding: 14 },
   scroll:    { flex: 1, backgroundColor: COLORS.bg },
