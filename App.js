@@ -19,6 +19,7 @@ import Constants from 'expo-constants';
 import { API_URL, IS_STAGING, COLORS } from './src/constants';
 import { loadCachedBarberos } from './src/hooks/useBarberos';
 import LoginScreen       from './src/screens/LoginScreen';
+import { onSesionExpirada } from './src/services/api';
 import SetupPinScreen    from './src/screens/SetupPinScreen';
 import HoyScreen         from './src/screens/HoyScreen';
 import RegistrarScreen   from './src/screens/RegistrarScreen';
@@ -139,6 +140,7 @@ async function registrarPushToken(bid) {
 
 export default function App() {
   const [usuario,      setUsuario]      = useState(null);
+  const [pinAdminInicial, setPinAdminInicial] = useState(false);
   const [setupPin,     setSetupPin]     = useState(null); // { perfil, loginPin } when pin_set=false
   const [authReady,    setAuthReady]    = useState(false);
   const [tab,          setTab]          = useState('hoy');
@@ -309,8 +311,16 @@ export default function App() {
     })();
   }, [usuario]);
 
+  // Any authenticated call that gets 401 (session gone or expired) sends the user back to login.
+  // An admin lands on the PIN step; a barber lands on the normal profile list.
+  useEffect(() => onSesionExpirada(() => {
+    setPinAdminInicial(usuario?.rol === 'admin');
+    logout();
+  }), [usuario]);
+
   // Called by LoginScreen after successful /api/v2/auth/login
   const handleLogin = ({ perfil, requireSetupPin, loginPin }) => {
+    setPinAdminInicial(false);
     if (requireSetupPin) {
       setSetupPin({ perfil, loginPin });
     } else {
@@ -355,7 +365,7 @@ export default function App() {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar style="light" />
-        <LoginScreen onLogin={handleLogin} />
+        <LoginScreen onLogin={handleLogin} pinAdminInicial={pinAdminInicial} />
       </GestureHandlerRootView>
     );
   }
