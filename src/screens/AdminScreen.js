@@ -889,6 +889,25 @@ export default function AdminScreen({ onLogout, catalogo }) {
     );
   };
 
+  // Restablecer PIN (TD-024 batch 2): clears the barber's PIN; he then logs in once with the master PIN and sets his own.
+  const restablecerPin = (b) => {
+    Alert.alert(
+      'Restablecer PIN de ' + b.nombre + '?',
+      'Se borra su PIN y se cierran sus sesiones. La próxima vez entra con el PIN maestro y crea su PIN nuevo. Queda registrado.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Restablecer', style: 'destructive', onPress: async () => {
+          try {
+            await api.post('/api/v2/staff/' + encodeURIComponent(b.bid) + '/reset-pin', {});
+            Alert.alert('Listo', 'PIN de ' + b.nombre + ' restablecido.');
+          } catch (e) {
+            Alert.alert('No se restableció', e.message || 'Intenta de nuevo.');
+          }
+        } },
+      ]
+    );
+  };
+
   const renderBarberos = () => (
     <ScrollView>
       <View style={s.content}>
@@ -916,6 +935,10 @@ export default function AdminScreen({ onLogout, catalogo }) {
                 <TouchableOpacity style={[s.btnBarberoAcc, { borderColor: 'rgba(201,168,76,.4)' }]}
                   onPress={() => cambiarAvatarAdmin(b)}>
                   <Text style={[s.btnBarberoAccTxt, { color: COLORS.gold }]}>📷 Avatar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.btnBarberoAcc, { borderColor: 'rgba(224,85,85,.5)' }]}
+                  onPress={() => restablecerPin(b)} accessibilityLabel={'Restablecer PIN de ' + b.nombre}>
+                  <Text style={[s.btnBarberoAccTxt, { color: COLORS.red }]}>🔑 Restablecer PIN</Text>
                 </TouchableOpacity>
               </View>
             </View>
