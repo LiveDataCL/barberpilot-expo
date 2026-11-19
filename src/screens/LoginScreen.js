@@ -34,6 +34,8 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
   const [shake]               = useState(new Animated.Value(0));
   const [error, setError]     = useState(false);
   const [mensajeError, setMensajeError] = useState('PIN incorrecto');
+  // Barber login: "Usar PIN maestro" switches the pad to the 4-8 digit mode with Entrar (the master PIN is 6 digits).
+  const [usarMaestro, setUsarMaestro] = useState(false);
   const [bioDisponible, setBioDisponible] = useState(false);
   const [pinAviso, setPinAviso] = useState('');
   const [avatarImages, setAvatarImages]   = useState({});
@@ -112,6 +114,7 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
     setPerfil(p);
     setPin('');
     setError(false);
+    setUsarMaestro(false);
     // Si es admin y hay biometría disponible, autenticar directamente
     if (p.rol === 'admin' && bioDisponible) {
       autenticarBiometria(p);
@@ -150,14 +153,16 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
   };
 
   const esAdmin = perfil?.rol === 'admin';
-  const maxLen = esAdmin ? PIN_MAX_ADMIN : 4;
+  // Long mode (4-8 digits, Entrar, no auto-submit): the admin profile, or a barber who chose the master PIN.
+  const largo = esAdmin || usarMaestro;
+  const maxLen = largo ? PIN_MAX_ADMIN : 4;
 
   const presionarPin = (n) => {
     if (pin.length >= maxLen) return;
     const nuevo = pin + n;
     setPin(nuevo);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!esAdmin && nuevo.length === maxLen) validar(nuevo);
+    if (!largo && nuevo.length === maxLen) validar(nuevo);
   };
 
   const borrar = () => setPin(p => p.slice(0, -1));
@@ -318,7 +323,7 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
         </View>
         <Text style={s.pinNombre}>{perfil.nombre}</Text>
         <Text style={s.pinSub}>
-          {esAdmin ? 'PIN de 4 a 8 dígitos' : 'Ingresa tu PIN'}
+          {esAdmin ? 'PIN de 4 a 8 dígitos' : usarMaestro ? 'PIN maestro de 4 a 8 dígitos' : 'Ingresa tu PIN'}
         </Text>
         {pinAviso ? <Text style={[s.pinSub, { marginTop: 6 }]}>{pinAviso}</Text> : null}
       </View>
@@ -328,16 +333,16 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
           <View key={i} style={[s.dot, {
             backgroundColor: i < pin.length ? perfil.color : 'transparent',
             borderColor: error ? COLORS.red : i < pin.length ? perfil.color : COLORS.border2,
-            width: esAdmin ? 14 : 18,
-            height: esAdmin ? 14 : 18,
-            borderRadius: esAdmin ? 7 : 9,
+            width: largo ? 14 : 18,
+            height: largo ? 14 : 18,
+            borderRadius: largo ? 7 : 9,
           }]} />
         ))}
       </Animated.View>
 
       {error && <Text style={s.pinError}>{mensajeError}</Text>}
 
-      {esAdmin && (
+      {largo && (
         <TouchableOpacity
           style={[s.entrarBtn, { backgroundColor: perfil.color, opacity: pin.length >= PIN_MIN ? 1 : 0.4 }]}
           disabled={pin.length < PIN_MIN}
@@ -345,6 +350,17 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
           accessibilityRole="button"
           accessibilityLabel="Entrar">
           <Text style={s.entrarTxt}>Entrar</Text>
+        </TouchableOpacity>
+      )}
+
+      {perfil?.rol === 'barbero' && (
+        <TouchableOpacity
+          style={s.maestroLink}
+          onPress={() => { setUsarMaestro(m => !m); setPin(''); setError(false); }}
+          accessibilityRole="button">
+          <Text style={[s.maestroLinkTxt, { color: perfil.color }]}>
+            {usarMaestro ? 'Usar PIN del barbero' : 'Usar PIN maestro'}
+          </Text>
         </TouchableOpacity>
       )}
 
@@ -381,6 +397,8 @@ const s = StyleSheet.create({
   logoWrap:  { alignItems: 'center' },
   entrarBtn: { paddingVertical: 12, paddingHorizontal: 48, borderRadius: 12, marginTop: 8 },
   entrarTxt: { color: '#0f0d07', fontSize: 16, fontWeight: '600' },
+  maestroLink: { paddingVertical: 10, paddingHorizontal: 16, marginTop: 4 },
+  maestroLinkTxt: { fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
   logoImg:   { width: 132, height: 115, marginBottom: 12 },
   brand:     { fontSize: 28, color: COLORS.text, fontWeight: '300', letterSpacing: 3, marginBottom: 4 },
   brandSub:  { fontSize: 10, color: COLORS.gold, letterSpacing: 2.5, textTransform: 'uppercase' },
