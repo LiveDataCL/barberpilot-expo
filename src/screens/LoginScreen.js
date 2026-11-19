@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Vibration, Animated, Dimensions, Alert, Image, ScrollView,
+  Vibration, Animated, Dimensions, Image, ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
@@ -12,6 +12,10 @@ import { sesionAdminValida } from '../services/api';
 import { useBarberos } from '../hooks/useBarberos';
 
 const { width, height } = Dimensions.get('window');
+
+// Admin PIN: 4 to 8 digits, submitted with the "Entrar" button (never auto-submitted). Other profiles keep 4 digits, auto-submit.
+const PIN_MIN = 4;
+const PIN_MAX_ADMIN = 8;
 
 // Background of the login screen (one definition, used by both gradients below) and the Salón Men SM monogram that sits on it.
 // Two PNGs, 132 x 115 dp at 3x (396 x 345 px): gold for a dark background, dark green for a light one. The variant is chosen from the background colour, so it stays right if the background changes.
@@ -29,6 +33,7 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
   const [pin, setPin]         = useState('');
   const [shake]               = useState(new Animated.Value(0));
   const [error, setError]     = useState(false);
+  const [mensajeError, setMensajeError] = useState('PIN incorrecto');
   const [bioDisponible, setBioDisponible] = useState(false);
   const [pinAviso, setPinAviso] = useState('');
   const [avatarImages, setAvatarImages]   = useState({});
@@ -144,20 +149,23 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
     }
   };
 
+  const esAdmin = perfil?.rol === 'admin';
+  const maxLen = esAdmin ? PIN_MAX_ADMIN : 4;
+
   const presionarPin = (n) => {
-    const maxLen = perfil?.rol === 'admin' ? 6 : 4;
     if (pin.length >= maxLen) return;
     const nuevo = pin + n;
     setPin(nuevo);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (nuevo.length === maxLen) validar(nuevo);
+    if (!esAdmin && nuevo.length === maxLen) validar(nuevo);
   };
 
   const borrar = () => setPin(p => p.slice(0, -1));
 
-  const rechazar = () => {
+  const rechazar = (texto = 'PIN incorrecto') => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     Vibration.vibrate([0, 80, 60, 80]);
+    setMensajeError(texto);
     setError(true);
     Animated.sequence([
       Animated.timing(shake, { toValue: 10,  duration: 60, useNativeDriver: true }),
@@ -175,9 +183,20 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenant_id: 'saulfino', bid: perfil.bid, pin: p }),
       });
-      const json = await res.json();
+      let json = {};
+      try { json = await res.json(); } catch { /* non-JSON body: handled by status below */ }
+      if (res.status === 429) {
+        rechazar('Demasiados intentos, espera 15 minutos');
+        return;
+      }
       if (res.status === 401 || !json.ok) {
-        rechazar();
+        rechazar(json.error === 'socio_not_configured'
+          ? 'Perfil no configurado. Avisa al administrador.'
+          : 'PIN incorrecto');
+        return;
+      }
+      if (res.status >= 500) {
+        rechazar('Error del servidor. Intenta de nuevo.');
         return;
       }
       // Store JWT for session persistence
@@ -191,13 +210,13 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
       }
     } catch {
       // Network unreachable — do NOT fall back to local PINs (security policy)
+      setMensajeError('Sin conexión con el servidor');
       setError(true);
       Animated.sequence([
         Animated.timing(shake, { toValue: 6,   duration: 60, useNativeDriver: true }),
         Animated.timing(shake, { toValue: -6,  duration: 60, useNativeDriver: true }),
         Animated.timing(shake, { toValue: 0,   duration: 60, useNativeDriver: true }),
       ]).start(() => { setPin(''); setError(false); });
-      Alert.alert('Sin conexión', 'No se pudo conectar al servidor. Intenta de nuevo.');
     }
   };
 
@@ -263,7 +282,7 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
                   <View style={s.perfilInfo}>
                     <Text style={s.perfilNombre}>{p.nombre}</Text>
                     <Text style={s.perfilRol}>
-                      {p.rol === 'admin' ? (bioDisponible ? 'Huella digital' : 'PIN 6 dígitos')
+                      {p.rol === 'admin' ? (bioDisponible ? 'Huella digital' : 'PIN')
                         : p.rol === 'socio' ? 'Solo visualización'
                         : 'Barbero · PIN 4 dígitos'}
                     </Text>
@@ -279,7 +298,6 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
   }
 
   // ── PANTALLA PIN ──────────────────────────────────────────
-  const maxLen = perfil?.rol === 'admin' ? 6 : 4;
   const KEYS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 
   return (
@@ -300,7 +318,7 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
         </View>
         <Text style={s.pinNombre}>{perfil.nombre}</Text>
         <Text style={s.pinSub}>
-          {perfil.rol === 'admin' ? 'PIN de 6 dígitos' : 'Ingresa tu PIN'}
+          {esAdmin ? 'PIN de 4 a 8 dígitos' : 'Ingresa tu PIN'}
         </Text>
         {pinAviso ? <Text style={[s.pinSub, { marginTop: 6 }]}>{pinAviso}</Text> : null}
       </View>
@@ -310,14 +328,25 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
           <View key={i} style={[s.dot, {
             backgroundColor: i < pin.length ? perfil.color : 'transparent',
             borderColor: error ? COLORS.red : i < pin.length ? perfil.color : COLORS.border2,
-            width: maxLen === 6 ? 14 : 18,
-            height: maxLen === 6 ? 14 : 18,
-            borderRadius: maxLen === 6 ? 7 : 9,
+            width: esAdmin ? 14 : 18,
+            height: esAdmin ? 14 : 18,
+            borderRadius: esAdmin ? 7 : 9,
           }]} />
         ))}
       </Animated.View>
 
-      {error && <Text style={s.pinError}>PIN incorrecto</Text>}
+      {error && <Text style={s.pinError}>{mensajeError}</Text>}
+
+      {esAdmin && (
+        <TouchableOpacity
+          style={[s.entrarBtn, { backgroundColor: perfil.color, opacity: pin.length >= PIN_MIN ? 1 : 0.4 }]}
+          disabled={pin.length < PIN_MIN}
+          onPress={() => validar(pin)}
+          accessibilityRole="button"
+          accessibilityLabel="Entrar">
+          <Text style={s.entrarTxt}>Entrar</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Biometría para admin */}
       {perfil?.rol === 'admin' && bioDisponible && (
@@ -350,6 +379,8 @@ const s = StyleSheet.create({
     paddingTop: height * 0.06, paddingBottom: height * 0.04, paddingHorizontal: 24 },
 
   logoWrap:  { alignItems: 'center' },
+  entrarBtn: { paddingVertical: 12, paddingHorizontal: 48, borderRadius: 12, marginTop: 8 },
+  entrarTxt: { color: '#0f0d07', fontSize: 16, fontWeight: '600' },
   logoImg:   { width: 132, height: 115, marginBottom: 12 },
   brand:     { fontSize: 28, color: COLORS.text, fontWeight: '300', letterSpacing: 3, marginBottom: 4 },
   brandSub:  { fontSize: 10, color: COLORS.gold, letterSpacing: 2.5, textTransform: 'uppercase' },
