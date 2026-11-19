@@ -73,18 +73,18 @@ export default function AnalisisMes() {
                 </View>
                 <Text style={{fontSize:18,color:COLORS.text,fontWeight:'700'}}>{b.nombre}</Text>
               </View>
-              <View style={{flexDirection:'row',gap:8,marginBottom:10}}>
-                <View style={[s.statCard,{flex:1}]}>
-                  <Text style={[s.statVal,{fontSize:20,color:COLORS.ok}]}>{k.svc}</Text>
-                  <Text style={s.statLbl}>Servicios</Text>
+              <View style={s.kpiRow}>
+                <View style={s.kpiCard}>
+                  <Text style={[s.kpiVal,{color:COLORS.ok}]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{k.svc}</Text>
+                  <Text style={s.statLbl} numberOfLines={1}>Servicios</Text>
                 </View>
-                <View style={[s.statCard,s.statGold,{flex:1}]}>
-                  <Text style={[s.statVal,{fontSize:20,color:COLORS.gold}]}>${fmt(k.bb)}</Text>
-                  <Text style={s.statLbl}>Ingresos</Text>
+                <View style={[s.kpiCard,s.statGold]}>
+                  <Text style={[s.kpiVal,{color:COLORS.gold}]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>${fmt(k.bb)}</Text>
+                  <Text style={s.statLbl} numberOfLines={1}>Ingresos</Text>
                 </View>
-                <View style={[s.statCard,{flex:1}]}>
-                  <Text style={[s.statVal,{fontSize:20}]}>${fmt(tk)}</Text>
-                  <Text style={s.statLbl}>Ticket prom.</Text>
+                <View style={s.kpiCard}>
+                  <Text style={s.kpiVal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>${fmt(tk)}</Text>
+                  <Text style={s.statLbl} numberOfLines={1}>Ticket prom.</Text>
                 </View>
               </View>
               {topSvc.length>0 && (
@@ -143,8 +143,8 @@ export default function AnalisisMes() {
                   borderRadius:4,overflow:'hidden'}}>
                   <View style={{height:8,width:pct+'%',backgroundColor:color,borderRadius:4}}/>
                 </View>
-                <Text style={{fontSize:11,color:COLORS.text3,width:28,textAlign:'right'}}>{v}</Text>
-                <Text style={{fontSize:11,color:COLORS.ok,width:72,
+                <Text style={{fontSize:11,color:COLORS.text3,minWidth:24,textAlign:'right'}}>{v}</Text>
+                <Text numberOfLines={1} style={{fontSize:11,color:COLORS.ok,minWidth:72,
                   textAlign:'right',fontWeight:'600'}}>${fmt(f)}</Text>
               </View>
             );
@@ -165,6 +165,10 @@ const s = StyleSheet.create({
   statCard: { flex: 1, minWidth: '45%', backgroundColor: COLORS.s2,
     borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 16 },
   statGold: { backgroundColor: 'rgba(201,168,76,.07)', borderColor: 'rgba(201,168,76,.2)' },
+  // KPI cards: a wrapping grid, two per row at phone width (the third wraps to the next line). Values shrink to fit; they are never cut.
+  kpiRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  kpiCard: { width: '48%', flexGrow: 0, flexShrink: 0, backgroundColor: COLORS.s2, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 12 },
+  kpiVal:  { fontSize: 18, color: COLORS.text, fontFamily: 'Montserrat_700Bold' },
   statVal:  { fontSize: 26, color: COLORS.text, fontFamily: 'Montserrat_700Bold' },
   statLbl:  { fontSize: 11, color: COLORS.text3, marginTop: 4,
     textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Montserrat_400Regular' },
