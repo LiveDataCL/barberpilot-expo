@@ -9,7 +9,7 @@ import MetaBanner from './MetaBanner';
 import DesgloseServicio from '../components/DesgloseServicio';
 import { cargarIngresoPorServicio } from '../services/ingresoPorServicio';
 import { updateDayNotification } from '../services/DayNotification';
-import { api } from '../services/api';
+import { api, fetchAutenticado } from '../services/api';
 import { etiquetaPago, iconoPago } from '../services/pagos';
 
 const API_URL = 'https://barberpilot-api-production.up.railway.app';
@@ -56,7 +56,7 @@ async function cargarRegistrosPeriodo(bid, periodo) {
   }
   const results = await Promise.all(
     dias.map(f =>
-      fetch(`${API_URL}/registros/dia?fecha=${f}`)
+      fetchAutenticado(`/registros/dia?fecha=${f}`)
         .then(r => r.json()).catch(() => ({ ok:false, registros:[] }))
     )
   );

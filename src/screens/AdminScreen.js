@@ -10,7 +10,7 @@ import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from '../constants';
 import { useBarberos } from '../hooks/useBarberos';
-import { api } from '../services/api';
+import { api, fetchAutenticado } from '../services/api';
 import { kpisPorBarbero } from '../services/kpisBarberos';
 import { botonesPago, comisionPreview, etiquetaPago } from '../services/pagos';
 const { width } = Dimensions.get('window');
@@ -136,7 +136,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
       const fin = new Date(hasta + 'T12:00:00');
       while (cur <= fin) { dias.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
       const results = await Promise.all(
-        dias.map(f => fetch(`${API_URL}/registros/dia?fecha=${f}`)
+        dias.map(f => fetchAutenticado(`/registros/dia?fecha=${f}`)
           .then(r => r.json()).catch(() => ({ok:false,registros:[]})))
       );
       let allRegs = [];
@@ -165,8 +165,8 @@ export default function AdminScreen({ onLogout, catalogo }) {
     if (!silent) setLoading(true);
     try {
       const [resRes, diaRes] = await Promise.all([
-        fetch(`${API_URL}/admin/resumen`).then(r => r.json()),
-        fetch(`${API_URL}/registros/dia?fecha=${hoy()}`).then(r => r.json()),
+        fetchAutenticado(`/admin/resumen`).then(r => r.json()),
+        fetchAutenticado(`/registros/dia?fecha=${hoy()}`).then(r => r.json()),
       ]);
       if (resRes.ok)  setResumen(resRes);
       if (diaRes.ok && Array.isArray(diaRes.registros)) setRegsHoy(diaRes.registros);

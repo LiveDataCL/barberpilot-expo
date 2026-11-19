@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   ActivityIndicator, Dimensions,
 } from 'react-native';
+import { fetchAutenticado } from '../services/api';
 import { API_URL, COLORS, fmt, mesPeriodo } from '../constants';
 const { width } = Dimensions.get('window');
 const CHART_W = width - 36;
@@ -31,7 +32,7 @@ export default function TendenciasScreen({ barbero }) {
 
       const results = await Promise.all(
         dias.map(f =>
-          fetch(`${API_URL}/registros/dia?fecha=${f}`)
+          fetchAutenticado(`/registros/dia?fecha=${f}`)
             .then(r => r.json()).catch(() => ({ok:false,registros:[]}))
         )
       );

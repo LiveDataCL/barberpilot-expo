@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { API_URL, COLORS, fmt, fmtM, mesPeriodo, hoy, TODOS_PERFILES } from '../constants';
 import * as SecureStore from 'expo-secure-store';
-import { api } from '../services/api';
+import { api, fetchAutenticado } from '../services/api';
 import { etiquetaPago, iconoPago } from '../services/pagos';
 
 const PERIODOS = [
@@ -55,7 +55,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
 
       const results = await Promise.all(
         dias.map(f =>
-          fetch(`${API_URL}/registros/dia?fecha=${f}`)
+          fetchAutenticado(`/registros/dia?fecha=${f}`)
             .then(r => r.json()).catch(() => ({ ok: false, registros: [] }))
         )
       );
