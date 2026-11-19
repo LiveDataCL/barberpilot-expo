@@ -64,6 +64,19 @@ async function apiFetch(path, options = {}) {
   }
 }
 
+// fetch with the session token (TD-022..TD-024: money reads and booking writes need an authenticated session).
+// Takes a path like "/registros/dia?fecha=2026-11-19". Same token store as apiFetch.
+export async function fetchAutenticado(path, options = {}) {
+  const token = await SecureStore.getItemAsync(SESSION_KEY).catch(() => null);
+  return fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
 export const api = {
   get:    (path)        => apiFetch(path),
   post:   (path, data)  => apiFetch(path, { method: 'POST',   body: JSON.stringify(data) }),

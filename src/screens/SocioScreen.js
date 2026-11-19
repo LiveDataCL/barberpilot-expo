@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, AppState,
 } from 'react-native';
+import { fetchAutenticado } from '../services/api';
 import { API_URL, COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import { etiquetaPago } from '../services/pagos';
@@ -73,7 +74,7 @@ export default function SocioScreen() {
 
       const results = await Promise.all(
         dias.map(f =>
-          fetch(`${API_URL}/registros/dia?fecha=${f}`)
+          fetchAutenticado(`/registros/dia?fecha=${f}`)
             .then(r => r.json())
             .catch(() => ({ ok: false, registros: [] }))
         )
