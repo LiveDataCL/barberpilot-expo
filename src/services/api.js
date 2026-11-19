@@ -86,7 +86,6 @@ export const api = {
   // Domain methods
   hoy:     (bid)           => apiFetch(`/barbero/${bid}/hoy`),
   mes:     (bid, periodo)  => apiFetch(`/barbero/${bid}/mes/${periodo}`),
-  ranking: (periodo)       => apiFetch(`/stats/mes/${periodo}`),
 
   registrar: async (reg) => {
     try {

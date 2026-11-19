@@ -4,6 +4,7 @@ import {
   RefreshControl, ActivityIndicator, AppState,
 } from 'react-native';
 import { fetchAutenticado } from '../services/api';
+import AnalisisMes from '../components/AnalisisMes';
 import { API_URL, COLORS, fmt, fmtM, mesPeriodo } from '../constants';
 import CalendarioModal from './CalendarioModal';
 import { etiquetaPago } from '../services/pagos';
@@ -56,7 +57,7 @@ export default function SocioScreen() {
     if (!silent) setLoading(true);
     try {
       // Proyección del mes
-      const mesR = await fetch(`${API_URL}/stats/mes/${mesPeriodo()}`)
+      const mesR = await fetchAutenticado(`/stats/mes/${mesPeriodo()}`)
         .then(r => r.json()).catch(() => ({ ok: false }));
 
       // Rango de fechas según período
@@ -169,7 +170,21 @@ export default function SocioScreen() {
     return () => sub.remove();
   }, [cargar]);
 
+  const [tab, setTab] = useState('resumen');
+  const tabBar = (
+    <View style={s.tabsWrap}>
+      {[['resumen', 'Resumen'], ['analisis', 'Análisis']].map(([id, label]) => (
+        <TouchableOpacity key={id} onPress={() => setTab(id)} style={[s.tabBtn, tab === id && s.tabBtnOn]}>
+          <Text style={[s.tabLbl, tab === id && s.tabLblOn]}>{label}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
   return (
+    <View style={s.scroll}>
+      {tabBar}
+      {tab === 'analisis' ? <AnalisisMes /> : (
     <ScrollView
       style={s.scroll} contentContainerStyle={s.content}
       refreshControl={
@@ -382,10 +397,17 @@ export default function SocioScreen() {
         </>
       ) : null}
     </ScrollView>
+      )}
+    </View>
   );
 }
 
 const s = StyleSheet.create({
+  tabsWrap: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6, backgroundColor: COLORS.bg },
+  tabBtn:   { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border2, alignItems: 'center', justifyContent: 'center' },
+  tabBtnOn: { backgroundColor: 'rgba(201,168,76,.12)', borderColor: COLORS.gold },
+  tabLbl:   { fontSize: 14, color: COLORS.text3 },
+  tabLblOn: { color: COLORS.gold, fontWeight: '700' },
   scroll:   { flex: 1, backgroundColor: COLORS.bg },
   content:  { padding: 18, paddingBottom: 40 },
   center:   { padding: 40, alignItems: 'center' },
