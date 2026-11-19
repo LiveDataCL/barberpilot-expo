@@ -4,6 +4,7 @@ import {
   RefreshControl, ActivityIndicator, TextInput, Alert,
   Dimensions, Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
@@ -36,18 +37,23 @@ function formatUltimaVisitaRelativa(fechaStr) {
 }
 
 const TABS_ADMIN = [
-  { id: 'resumen',    label: 'Resumen',   icon: '📊' },
-  { id: 'agenda',     label: 'Agenda',    icon: '📅' },
-  { id: 'registrar',  label: 'Registrar', icon: '➕' },
-  { id: 'recepcion',  label: 'Recepción', icon: '🛎️' },
-  { id: 'tendencias', label: 'Análisis',  icon: '🔥' },
-  { id: 'barberos',   label: 'Perfiles',  icon: '👤' },
+  { id: 'resumen',    label: 'Resumen',   icon: 'stats-chart-outline' },
+  { id: 'agenda',     label: 'Agenda',    icon: 'calendar-outline' },
+  { id: 'registrar',  label: 'Registrar', icon: 'add-circle-outline' },
+  { id: 'recepcion',  label: 'Recepción', icon: 'notifications-outline' },
+  { id: 'sillas',     label: 'Sillas',    icon: 'cut-outline' },
+  { id: 'tendencias', label: 'Análisis',  icon: 'flame-outline' },
+  { id: 'barberos',   label: 'Perfiles',  icon: 'people-outline' },
 ];
 
 export default function AdminScreen({ onLogout, catalogo }) {
   // Live catalog when available; SERVICIOS_FALLBACK only as last resort.
   const SERVICIOS = (catalogo?.servicios && catalogo.servicios.length > 0) ? catalogo.servicios : SERVICIOS_FALLBACK;
   const preciosCargando = !catalogo || catalogo.cargando === true;
+  // Sillas: the board state of each barber (GET /api/v2/sillas/estado), refreshed with the screen's 30 s cargar()
+  const [sillas, setSillas] = useState(null);
+  const [sillasErr, setSillasErr] = useState(null);
+  const [sillasBusy, setSillasBusy] = useState(null);
   const [tab, setTab]             = useState('resumen');
   const [resumen, setResumen]     = useState(null);
   const [regsHoy, setRegsHoy]     = useState([]);
@@ -164,6 +170,8 @@ export default function AdminScreen({ onLogout, catalogo }) {
       ]);
       if (resRes.ok)  setResumen(resRes);
       if (diaRes.ok && Array.isArray(diaRes.registros)) setRegsHoy(diaRes.registros);
+      try { setSillas(await api.get('/api/v2/sillas/estado')); setSillasErr(null); }
+      catch (e) { setSillasErr(e.message || 'Sin conexión'); }
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -386,7 +394,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
         contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
         <Text style={s.secLbl}>ASIGNAR A BARBERO</Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 18 }}>
           {barberos.map(function(b) {
             return (
               <TouchableOpacity key={b.bid}
@@ -559,7 +567,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
           placeholderTextColor={COLORS.text3} />
 
         <Text style={s.secLbl}>BARBERO</Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 18 }}>
           <TouchableOpacity
             style={[s.accionCard, recBid === 'any' && { borderColor: COLORS.gold, backgroundColor: 'rgba(201,168,76,.08)' }]}
             onPress={function() { setRecBid('any'); }}>
@@ -623,6 +631,83 @@ export default function AdminScreen({ onLogout, catalogo }) {
       </ScrollView>
     );
   };
+
+  // ── Sillas (same data and rules as the panel and the TV) ─────────────
+  // The state comes from the server. Mapping from the server's state to the words on screen:
+  const etiquetaSilla = (b) => {
+    if (b.state === 'cortando') return (b.estimated_end && b.remaining_min > 0)
+      ? 'Cortando · termina ~' + b.estimated_end : 'Cortando · termina en breve';
+    if (b.state === 'espera') return 'Con cliente en espera';
+    if (b.state === 'siguiente') return 'Siguiente';
+    if (b.state === 'disponible') return 'Disponible';
+    if (b.state === 'ausente') return 'Ausente' + (b.return_at ? ' · vuelve ~' + b.return_at : '');
+    return '—';
+  };
+  // The server sends first names, not queue ids: the queue id comes from the barber list (same first name).
+  const colaDe = (primerNombre) => {
+    const hit = barberos.find((x) => (x.nombre || '').split(' ')[0] === primerNombre);
+    return hit ? hit.queue_id : null;
+  };
+  const cambiarSilla = async (b, disponible) => {
+    const cola = colaDe(b.first_name);
+    if (!cola) { Alert.alert('No se pudo', 'No encuentro a este barbero en la lista.'); return; }
+    setSillasBusy(cola);
+    try {
+      await api.post('/api/v2/sillas/' + encodeURIComponent(cola) + '/disponibilidad', { available: disponible });
+      await cargar(true);
+    } catch (e) {
+      Alert.alert('No se guardó', e.message || 'Intenta de nuevo.');
+    } finally {
+      setSillasBusy(null);
+    }
+  };
+
+  const renderSillas = () => (
+    <ScrollView
+      refreshControl={<RefreshControl refreshing={refreshing}
+        onRefresh={() => { setRefreshing(true); cargar(true); }}
+        tintColor={COLORS.gold} colors={[COLORS.gold]} />}
+      contentContainerStyle={s.content}>
+      <Text style={s.secLbl}>SILLAS · AHORA</Text>
+      {sillasErr && (
+        <Text style={{ fontSize: 12, color: COLORS.red, marginBottom: 12 }}>
+          No se pudo actualizar las sillas. Se reintenta cada 30 s.
+        </Text>
+      )}
+      {!sillas && !sillasErr && <ActivityIndicator color={COLORS.gold} style={{ marginTop: 24 }} />}
+      {sillas && (sillas.barbers || []).map((b) => {
+        const ausente = b.status === 'ausente';
+        const puedeAccion = ausente || b.status === 'en_turno';
+        const cola = colaDe(b.first_name);
+        const ocupado = sillasBusy !== null && sillasBusy === cola;
+        return (
+          <View key={b.first_name + '-' + b.order} style={{
+            backgroundColor: COLORS.s2, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
+            padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text numberOfLines={1} style={{ fontSize: 16, color: COLORS.text, fontWeight: '600' }}>
+                {b.first_name}
+              </Text>
+              <Text style={{ fontSize: 13, color: b.state === 'cortando' ? COLORS.gold : COLORS.text2, marginTop: 4 }}>
+                {etiquetaSilla(b)}
+              </Text>
+            </View>
+            {puedeAccion && (
+            <TouchableOpacity
+              disabled={!cola || ocupado}
+              onPress={() => cambiarSilla(b, ausente)}
+              style={{ borderWidth: 1, borderColor: COLORS.gold, borderRadius: 10,
+                paddingVertical: 8, paddingHorizontal: 12, opacity: (!cola || ocupado) ? 0.4 : 1 }}>
+              {ocupado
+                ? <ActivityIndicator color={COLORS.gold} />
+                : <Text style={{ fontSize: 13, color: COLORS.gold, fontWeight: '600' }}>{ausente ? 'Volvió' : 'Salió'}</Text>}
+            </TouchableOpacity>
+            )}
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
 
   const renderResumen = () => (
     <ScrollView
@@ -951,13 +1036,13 @@ export default function AdminScreen({ onLogout, catalogo }) {
         {TABS_ADMIN.map(t => (
           <TouchableOpacity key={t.id} style={[s.adminTab, tab === t.id && s.adminTabOn]}
             onPress={() => setTab(t.id)}>
-            <Text style={s.adminTabIcon}>{t.icon}</Text>
+            <Ionicons name={t.icon} size={22} color={tab === t.id ? COLORS.gold : COLORS.text3} />
             {t.id === 'agenda' && badgeAgenda > 0 && (
               <View style={[s.badge, { backgroundColor: COLORS.gold }]}>
                 <Text style={[s.badgeTxt, { color: COLORS.bg }]}>{badgeAgenda}</Text>
               </View>
             )}
-            <Text style={[s.adminTabLbl, tab === t.id && { color: COLORS.gold }]}>
+            <Text numberOfLines={1} style={[s.adminTabLbl, tab === t.id && { color: COLORS.gold }]}>
               {t.label}
             </Text>
           </TouchableOpacity>
@@ -972,6 +1057,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
         tab === 'agenda'     ? renderAgenda()     :
         tab === 'registrar'  ? renderRegistrar()  :
         tab === 'recepcion'  ? renderRecepcion()  :
+        tab === 'sillas'     ? renderSillas()     :
         tab === 'tendencias' ? renderTendAdmin()  :
         renderBarberos()
       )}
@@ -1003,12 +1089,13 @@ const s = StyleSheet.create({
   statLbl:  { fontSize: 11, color: COLORS.text3, marginTop: 4,
     textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Montserrat_400Regular' },
 
-  accionCard: { flex: 1, backgroundColor: COLORS.s2, borderRadius: 14,
+  // Two per row: the old flex:1 row squeezed 4-5 cards into ~60px each and broke names mid-word
+  accionCard: { width: '48%', flexGrow: 0, marginBottom: 8, backgroundColor: COLORS.s2, borderRadius: 14,
     borderWidth: 1, borderColor: COLORS.border, padding: 14, alignItems: 'center' },
   accionAvatar: { width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   accionLetra: { fontSize: 20, fontWeight: '700' },
-  accionNom:  { fontSize: 14, color: COLORS.text, fontWeight: '600' },
+  accionNom:  { fontSize: 14, color: COLORS.text, fontWeight: '600', textAlign: 'center' },
 
 
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between',
@@ -1031,14 +1118,15 @@ const s = StyleSheet.create({
   cardTitle:{ fontSize: 11, color: COLORS.text3, letterSpacing: 2,
     textTransform: 'uppercase', marginBottom: 14, fontFamily: 'Montserrat_500Medium' },
 
-  adminTabsOuter: { backgroundColor: COLORS.s1, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  adminTabs: { flexDirection: 'row', minWidth: '100%' },
-  adminTab:  { width: Math.floor(width / 8), alignItems: 'center', paddingVertical: 10,
+  // flexGrow 0: a horizontal ScrollView in a column stretches by default and leaves an empty block under the tabs
+  adminTabsOuter: { flexGrow: 0, backgroundColor: COLORS.s1, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  adminTabs: { flexDirection: 'row', paddingHorizontal: 4 },
+  // Sized to the label, never narrower than 88: one line, no mid-word breaks
+  adminTab:  { minWidth: 88, paddingHorizontal: 10, alignItems: 'center', paddingVertical: 8,
     position: 'relative' },
   adminTabOn:{ borderBottomWidth: 2, borderBottomColor: COLORS.gold },
-  adminTabIcon: { fontSize: 20 },
-  adminTabLbl:  { fontSize: 10, color: COLORS.text3, marginTop: 3,
-    textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'Montserrat_500Medium' },
+  adminTabLbl:  { fontSize: 12, color: COLORS.text3, marginTop: 3, letterSpacing: 0,
+    fontFamily: 'Montserrat_500Medium' },
   badge:    { position: 'absolute', top: 6, right: '20%',
     backgroundColor: COLORS.red, borderRadius: 10,
     minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center',

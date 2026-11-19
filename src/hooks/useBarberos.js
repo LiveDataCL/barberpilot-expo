@@ -20,6 +20,7 @@ const _DEFAULT_BG    = 'rgba(201,168,76,.18)';
 function _merge(apiList) {
   return apiList.map(b => ({
     bid:       b.bid,
+    queue_id:  b.queue_id,
     nombre:    b.nombre,
     iniciales: b.iniciales,
     color:     b.color || _DEFAULT_COLOR,
@@ -31,7 +32,7 @@ function _merge(apiList) {
 
 function _toCompact(apiList) {
   return apiList.map(b => ({
-    bid: b.bid, nombre: b.nombre, iniciales: b.iniciales,
+    bid: b.bid, queue_id: b.queue_id, nombre: b.nombre, iniciales: b.iniciales,
     color: b.color || null, activo: b.activo !== false,
   }));
 }
