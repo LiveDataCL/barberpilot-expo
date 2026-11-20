@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, TextInput, Alert,
-  Dimensions, Image,
+  Dimensions, Image, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,6 +12,7 @@ import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from 
 import { useBarberos } from '../hooks/useBarberos';
 import { api, fetchAutenticado } from '../services/api';
 import { kpisPorBarbero } from '../services/kpisBarberos';
+import { precioDelServicio, propinaCalculada, resumenCobro, metodosCobro, enviarCobro } from '../services/cobro';
 import { botonesPago, comisionPreview, etiquetaPago } from '../services/pagos';
 const { width } = Dimensions.get('window');
 
@@ -136,6 +137,12 @@ export default function AdminScreen({ onLogout, catalogo }) {
       if (diaRes.ok && Array.isArray(diaRes.registros)) setRegsHoy(diaRes.registros);
       try { setSillas(await api.get('/api/v2/sillas/estado')); setSillasErr(null); }
       catch (e) { setSillasErr(e.message || 'Sin conexión'); }
+      try {
+        const ctl = await fetchAutenticado('/queue/control').then((r) => r.json());
+        if (ctl && ctl.ok && ctl.barberos) {
+          setEnServicio(Object.fromEntries(Object.entries(ctl.barberos).map(([bid, v]) => [bid, v.enServicio || null])));
+        }
+      } catch { /* keep the last known entries */ }
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -622,6 +629,126 @@ export default function AdminScreen({ onLogout, catalogo }) {
     }
   };
 
+  // ── Cobrar (Sillas, admin): the closing sheet. The server does the closing (POST /api/v2/sillas/cobrar). ──
+  const [enServicio, setEnServicio] = useState({});   // bid → the in-service queue entry (from /queue/control)
+  const [cobro, setCobro] = useState(null);           // the open sheet: { barbero, entry }
+  const [cobroPago, setCobroPago] = useState('efectivo');
+  const [cobroPropinaModo, setCobroPropinaModo] = useState('ninguna');
+  const [cobroOtro, setCobroOtro] = useState('');
+  const [cobroBusy, setCobroBusy] = useState(false);
+  const [cobroMsg, setCobroMsg] = useState(null);
+  const abrirCobro = (barbero, entry) => {
+    setCobroPago('efectivo'); setCobroPropinaModo('ninguna'); setCobroOtro(''); setCobroMsg(null);
+    setCobro({ barbero, entry });
+  };
+  const cerrarCobro = () => { if (!cobroBusy) setCobro(null); };
+  const confirmarCobro = async () => {
+    if (!cobro || cobroBusy) return;                 // a second tap while the first is in flight does nothing
+    const precio = precioDelServicio(catalogo, cobro.entry.service);
+    if (!precio) { setCobroMsg({ texto: 'No encuentro el precio de este servicio. Avisa al administrador antes de cobrar.' }); return; }
+    const propina = propinaCalculada(cobroPropinaModo, precio, cobroOtro);
+    const resumen = resumenCobro(catalogo, cobroPago, precio, propina);
+    setCobroBusy(true); setCobroMsg(null);
+    const res = await enviarCobro(fetchAutenticado, {
+      queue_id: cobro.entry.id, bid: cobro.barbero.bid, pago: cobroPago, propina,
+    });
+    setCobroBusy(false);
+    if (res.estado === 'ok') {
+      setCobro(null);
+      Alert.alert('Cobro registrado', (resumen ? resumen.textoMonto + ' · barbero ' + resumen.textoBarbero : '') + '. La silla queda libre.');
+    } else {
+      setCobroMsg({ texto: res.mensaje });
+    }
+    cargar(true);   // the card updates right after, whatever the answer was
+  };
+  const renderCobroSheet = () => {
+    if (!cobro) return null;
+    const { barbero, entry } = cobro;
+    const precio = precioDelServicio(catalogo, entry.service);
+    const propina = precio ? propinaCalculada(cobroPropinaModo, precio, cobroOtro) : 0;
+    const resumen = precio ? resumenCobro(catalogo, cobroPago, precio, propina) : null;
+    const fila = (etq, val, color) => (
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+        <Text style={{ fontSize: 14, color: COLORS.text2 }}>{etq}</Text>
+        <Text style={{ fontSize: 14, color: color || COLORS.text, fontWeight: '600' }}>{val}</Text>
+      </View>
+    );
+    return (
+      <Modal visible transparent animationType="slide" onRequestClose={cerrarCobro}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.6)', justifyContent: 'flex-end' }}>
+          <ScrollView style={{ maxHeight: '90%' }} contentContainerStyle={{ backgroundColor: COLORS.s1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32 }}>
+            <Text style={s.secLbl}>COBRAR SERVICIO · {barbero ? barbero.nombre : ''}</Text>
+            <Text style={{ fontSize: 18, color: COLORS.text, fontWeight: '600' }}>{entry.client_name || 'Cliente'}</Text>
+            <Text style={{ fontSize: 14, color: COLORS.text2, marginTop: 2, marginBottom: 14 }}>{entry.service}</Text>
+
+            <Text style={s.cardTitle}>Método de pago</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {metodosCobro(catalogo).map((m) => {
+                const on = cobroPago === m.clave;
+                return (
+                  <TouchableOpacity key={m.clave} disabled={cobroBusy} onPress={() => setCobroPago(m.clave)}
+                    style={{ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1,
+                      borderColor: on ? COLORS.gold : COLORS.border, backgroundColor: on ? 'rgba(201,168,76,.12)' : COLORS.s2 }}>
+                    <Text style={{ color: on ? COLORS.gold : COLORS.text2, fontWeight: '600' }}>
+                      {m.etiqueta}{m.pct != null ? ' · ' + m.pct + '%' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={s.cardTitle}>Propina</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              {[['ninguna', 'Sin propina'], ['diez', '10 %'], ['otro', 'Otro monto']].map(([k, etq]) => {
+                const on = cobroPropinaModo === k;
+                return (
+                  <TouchableOpacity key={k} disabled={cobroBusy} onPress={() => setCobroPropinaModo(k)}
+                    style={{ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1,
+                      borderColor: on ? COLORS.gold : COLORS.border, backgroundColor: on ? 'rgba(201,168,76,.12)' : COLORS.s2 }}>
+                    <Text style={{ color: on ? COLORS.gold : COLORS.text2, fontWeight: '600' }}>{etq}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {cobroPropinaModo === 'otro' && (
+              <TextInput value={cobroOtro} onChangeText={(t) => setCobroOtro(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad" placeholder="Monto de la propina" placeholderTextColor={COLORS.text3}
+                editable={!cobroBusy}
+                style={{ minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.s2,
+                  color: COLORS.text, paddingHorizontal: 12, fontSize: 16, marginBottom: 8 }} />
+            )}
+
+            <View style={[s.card, { marginTop: 10 }]}>
+              {resumen ? (
+                <>
+                  {fila('Monto del servicio', resumen.textoMonto)}
+                  {fila('Barbero recibe', resumen.textoBarbero, COLORS.ok)}
+                  {fila('Negocio retiene', resumen.textoNegocio, COLORS.gold)}
+                  {resumen.propina > 0 && <Text style={{ fontSize: 12, color: COLORS.text3, marginTop: 4 }}>La propina va completa al barbero.</Text>}
+                </>
+              ) : (
+                <Text style={{ fontSize: 14, color: COLORS.red }}>No encuentro el precio de este servicio. Avisa al administrador.</Text>
+              )}
+            </View>
+
+            {cobroMsg && <Text style={{ fontSize: 14, color: COLORS.red, marginTop: 12 }}>{cobroMsg.texto}</Text>}
+
+            <TouchableOpacity disabled={!resumen || cobroBusy} onPress={confirmarCobro}
+              style={{ marginTop: 16, minHeight: 52, borderRadius: 14, backgroundColor: COLORS.gold, alignItems: 'center', justifyContent: 'center',
+                opacity: (!resumen || cobroBusy) ? 0.5 : 1 }}>
+              {cobroBusy
+                ? <ActivityIndicator color={COLORS.bg} />
+                : <Text style={{ fontSize: 17, color: COLORS.bg, fontWeight: '700' }}>Confirmar cobro</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity disabled={cobroBusy} onPress={cerrarCobro} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
+              <Text style={{ color: COLORS.text3 }}>Cancelar</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderSillas = () => (
     <ScrollView
       refreshControl={<RefreshControl refreshing={refreshing}
@@ -652,6 +779,16 @@ export default function AdminScreen({ onLogout, catalogo }) {
                 {etiquetaSilla(b)}
               </Text>
             </View>
+            {b.state === 'cortando' && (() => {
+              const barb = barberos.find((x) => x.queue_id === cola);
+              const entry = barb ? enServicio[barb.bid] : null;
+              return entry ? (
+                <TouchableOpacity onPress={() => abrirCobro(barb, entry)}
+                  style={{ backgroundColor: COLORS.gold, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 }}>
+                  <Text style={{ fontSize: 13, color: COLORS.bg, fontWeight: '700' }}>Cobrar</Text>
+                </TouchableOpacity>
+              ) : null;
+            })()}
             {puedeAccion && (
             <TouchableOpacity
               disabled={!cola || ocupado}
@@ -743,6 +880,29 @@ export default function AdminScreen({ onLogout, catalogo }) {
     </ScrollView>
   );
 
+  // Perfiles: devices with a fingerprint for the admin (admin session). Revoking one makes that device use the PIN.
+  const [dispositivos, setDispositivos] = useState([]);
+  const cargarDispositivos = async () => {
+    try {
+      const r = await fetchAutenticado('/api/v2/auth/devices');
+      const j = await r.json();
+      if (r.ok && j.ok) setDispositivos(j.devices || []);
+    } catch { /* offline: keep the last list */ }
+  };
+  useEffect(() => { if (tab === 'barberos') cargarDispositivos(); }, [tab]);
+  const revocarDispositivo = (d) => {
+    Alert.alert('Revocar huella', '¿Quitar la huella de "' + (d.device_label || 'este equipo') + '"? Ese equipo tendrá que ingresar el PIN.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Revocar', style: 'destructive', onPress: async () => {
+          try {
+            const r = await fetchAutenticado('/api/v2/auth/devices/' + d.id, { method: 'DELETE' });
+            if (!r.ok) Alert.alert('No se pudo revocar', 'Intenta de nuevo.');
+          } catch { Alert.alert('Sin conexión', 'No se pudo revocar. Intenta de nuevo.'); }
+          cargarDispositivos();
+      } },
+    ]);
+  };
+
   const renderBarberos = () => (
     <ScrollView>
       <View style={s.content}>
@@ -811,6 +971,23 @@ export default function AdminScreen({ onLogout, catalogo }) {
             </View>
           </View>
         )}
+
+        <Text style={[s.secLbl, { marginTop: 18 }]}>HUELLA DEL ADMINISTRADOR · EQUIPOS</Text>
+        {dispositivos.length === 0 ? (
+          <Text style={{ color: COLORS.text3, fontSize: 13 }}>Ningún equipo con huella.</Text>
+        ) : dispositivos.map(d => (
+          <View key={d.id} style={[s.card, { marginBottom: 10 }]}>
+            <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '600' }}>{d.device_label || 'Equipo'}</Text>
+            <Text style={{ fontSize: 12, color: COLORS.text3, marginTop: 4 }}>
+              {d.revoked_at ? 'Revocado' : 'Activo'} · último uso: {d.last_used_at ? new Date(d.last_used_at).toLocaleString('es-CL') : 'nunca'}
+            </Text>
+            {!d.revoked_at && (
+              <TouchableOpacity onPress={() => revocarDispositivo(d)} style={{ marginTop: 10, minHeight: 44, justifyContent: 'center' }}>
+                <Text style={{ color: '#E05A5A', fontWeight: '600' }}>Revocar huella</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
       </View>
     </ScrollView>
   );
@@ -915,6 +1092,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
         renderBarberos()
       )}
 
+      {renderCobroSheet()}
     </View>
   );
 }

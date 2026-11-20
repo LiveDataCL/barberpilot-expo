@@ -20,7 +20,8 @@ export const COLORS = {
 };
 
 // ─── API ──────────────────────────────────────────────────────
-export const API_URL = 'https://barberpilot-api-production.up.railway.app';
+// Production by default. EXPO_PUBLIC_API_URL is set only for a staging test session (dev server); release builds never set it.
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://barberpilot-api-production.up.railway.app';
 
 export const IS_STAGING = false;
 

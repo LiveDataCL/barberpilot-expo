@@ -3,21 +3,6 @@ import { API_URL } from '../constants';
 
 const TIMEOUT_MS = 10000;
 
-// Fingerprint entry check: true only when the stored token is valid AND belongs to an admin (GET /api/v2/auth/me).
-// Any doubt (no token, network error, non-admin role) is false, and the caller then asks for the 6-digit PIN.
-export async function sesionAdminValida() {
-  const token = await SecureStore.getItemAsync(SESSION_KEY).catch(() => null);
-  if (!token) return false;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const r = await fetch(`${API_URL}/api/v2/auth/me`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
-    if (!r.ok) return false;
-    const j = await r.json();
-    return !!j.ok && j.role === 'admin';
-  } catch { return false; } finally { clearTimeout(timer); }
-}
-
 // Session token saved at login. Sent with every call; routes that do not check it ignore it.
 const SESSION_KEY = 'bp_auth_token';
 export const MSG_SESION = 'Tu sesión expiró o no está iniciada. Vuelve a ingresar.';

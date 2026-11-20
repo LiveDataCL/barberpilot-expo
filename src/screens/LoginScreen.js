@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { COLORS, ADMIN, SOCIOS, API_URL } from '../constants';
-import { sesionAdminValida } from '../services/api';
+import { desbloquearAdmin, registrarDispositivoAdmin, hayRegistroLocal } from '../services/deviceAdmin';
 import { useBarberos } from '../hooks/useBarberos';
 
 const { width, height } = Dimensions.get('window');
@@ -123,33 +123,21 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
     }
   };
 
+  // Fingerprint entry: the device token (read after the phone's biometric check) opens an admin session on the server.
+  // Any other outcome asks for the PIN, with the reason. The master PIN is never used here.
   const autenticarBiometria = async (p) => {
-    try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Verifica tu identidad para acceder como Admin',
-        fallbackLabel: 'Usar PIN',
-        cancelLabel: 'Cancelar',
-        disableDeviceFallback: false,
-      });
-      if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Fail closed: the fingerprint only opens an admin session when this device holds a valid admin token.
-        if (await sesionAdminValida()) {
-          onLogin({ perfil: p });
-        } else {
-          setPin(''); setError(false);
-          setPinAviso('Ingresa tu PIN de 6 dígitos una vez en este equipo para activar la huella.');
-          setStep('pin');
-        }
-      } else if (result.error === 'user_fallback') {
-        // Usuario quiere usar PIN
-        setStep('pin');
-      } else {
-        setStep('select');
-      }
-    } catch {
-      setStep('pin'); // fallback a PIN
+    const r = await desbloquearAdmin();
+    if (r.estado === 'ok') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onLogin({ perfil: p });
+      return;
     }
+    setPin(''); setError(false);
+    if (r.estado === 'revocado') setPinAviso('La huella de este equipo ya no está activa. Ingresa tu PIN.');
+    else if (r.estado === 'sin_huella') setPinAviso('Ingresa tu PIN una vez en este equipo para activar la huella.');
+    else if (r.estado === 'red') setPinAviso('Sin conexión. Ingresa tu PIN cuando vuelva.');
+    else if (r.estado === 'bloqueado') setPinAviso('Demasiados intentos con la huella. Espera 15 minutos o ingresa tu PIN.');
+    setStep('pin');
   };
 
   const esAdmin = perfil?.rol === 'admin';
@@ -206,6 +194,10 @@ export default function LoginScreen({ onLogin, pinAdminInicial = false }) {
       }
       // Store JWT for session persistence
       await SecureStore.setItemAsync('bp_auth_token', json.token);
+      // Admin: after a PIN login, this device gets its fingerprint registration once (failure never blocks the login).
+      if (perfil?.rol === 'admin' && !(await hayRegistroLocal())) {
+        await registrarDispositivoAdmin(json.token);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (!json.pin_set) {
         // First-time setup — pass login PIN so set-pin can verify current_pin
