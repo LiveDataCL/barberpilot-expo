@@ -12,7 +12,7 @@ import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from 
 import { useBarberos } from '../hooks/useBarberos';
 import { api, fetchAutenticado } from '../services/api';
 import { kpisPorBarbero } from '../services/kpisBarberos';
-import { precioDelServicio, propinaCalculada, estadoCobro, enviarCobro } from '../services/cobro';
+import { precioDelServicio, propinaCalculada, estadoCobro, enviarCobro, cerrarSinCobro, validarMotivo, MOTIVOS_RAPIDOS } from '../services/cobro';
 import { botonesPago, comisionPreview, etiquetaPago } from '../services/pagos';
 const { width } = Dimensions.get('window');
 
@@ -642,6 +642,78 @@ export default function AdminScreen({ onLogout, catalogo }) {
     setCobro({ barbero, entry });
   };
   const cerrarCobro = () => { if (!cobroBusy) setCobro(null); };
+  // ── Cerrar sin cobro (Sillas, admin): a reason is required; the server audits the actor and excludes the entry from counts.
+  const [sinCobro, setSinCobro] = useState(null);     // { barbero, entry } for the sheet
+  const [sinCobroMotivo, setSinCobroMotivo] = useState('');
+  const [sinCobroBusy, setSinCobroBusy] = useState(false);
+  const [sinCobroMsg, setSinCobroMsg] = useState(null);
+  const abrirSinCobro = (barbero, entry) => {
+    setSinCobroMotivo(''); setSinCobroMsg(null);
+    setSinCobro({ barbero, entry });
+  };
+  const cerrarSinCobroSheet = () => { if (!sinCobroBusy) setSinCobro(null); };
+  const confirmarSinCobro = async () => {
+    if (!sinCobro || sinCobroBusy) return;             // a second tap while the first is in flight does nothing
+    const val = validarMotivo(sinCobroMotivo);
+    if (!val.ok) { setSinCobroMsg({ texto: val.mensaje }); return; }
+    setSinCobroBusy(true); setSinCobroMsg(null);
+    const res = await cerrarSinCobro(fetchAutenticado, { queue_id: sinCobro.entry.id, motivo: val.motivo });
+    setSinCobroBusy(false);
+    if (res.estado === 'ok') {
+      setSinCobro(null);
+      Alert.alert('Cerrado sin cobro', 'La silla queda libre. El servicio no cuenta en las ventas ni en los tiempos.');
+    } else {
+      setSinCobroMsg({ texto: res.mensaje });
+    }
+    cargar(true);
+  };
+  const renderSinCobroSheet = () => {
+    if (!sinCobro) return null;
+    const val = validarMotivo(sinCobroMotivo);
+    const largo = sinCobroMotivo.trim().length;
+    return (
+      <Modal visible transparent animationType="slide" onRequestClose={cerrarSinCobroSheet}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.6)', justifyContent: 'flex-end' }}>
+          <ScrollView style={{ maxHeight: '90%' }} contentContainerStyle={{ backgroundColor: COLORS.s1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32 }}>
+            <Text style={s.secLbl}>CERRAR SIN COBRO · {sinCobro.barbero ? sinCobro.barbero.nombre : ''}</Text>
+            <Text style={{ fontSize: 18, color: COLORS.text, fontWeight: '600' }}>{sinCobro.entry.client_name || 'Cliente'}</Text>
+            <Text style={{ fontSize: 14, color: COLORS.text2, marginTop: 2, marginBottom: 14 }}>{sinCobro.entry.service}</Text>
+            <Text style={{ fontSize: 13, color: COLORS.text3, marginBottom: 10 }}>Este servicio no se cobra. Queda fuera de las ventas, de los tiempos y de los conteos, con el motivo y tu nombre.</Text>
+
+            <Text style={s.cardTitle}>Motivo</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+              {MOTIVOS_RAPIDOS.map((m) => (
+                <TouchableOpacity key={m} disabled={sinCobroBusy} onPress={() => setSinCobroMotivo(m)}
+                  style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 12, borderWidth: 1,
+                    borderColor: sinCobroMotivo === m ? COLORS.gold : COLORS.border, backgroundColor: sinCobroMotivo === m ? 'rgba(201,168,76,.12)' : COLORS.s2 }}>
+                  <Text style={{ color: sinCobroMotivo === m ? COLORS.gold : COLORS.text2, fontWeight: '600' }}>{m}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput value={sinCobroMotivo} onChangeText={setSinCobroMotivo} maxLength={120} editable={!sinCobroBusy}
+              placeholder="Escribe el motivo (5 a 120 caracteres)" placeholderTextColor={COLORS.text3}
+              style={{ minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.s2,
+                color: COLORS.text, paddingHorizontal: 12, fontSize: 16 }} />
+            <Text style={{ fontSize: 12, color: COLORS.text3, marginTop: 4 }}>{largo}/120</Text>
+
+            {!val.ok && largo > 0 && <Text style={{ fontSize: 13, color: COLORS.text2, marginTop: 8 }}>{val.mensaje}</Text>}
+            {sinCobroMsg && <Text style={{ fontSize: 14, color: COLORS.red, marginTop: 10 }}>{sinCobroMsg.texto}</Text>}
+
+            <TouchableOpacity disabled={!val.ok || sinCobroBusy} onPress={confirmarSinCobro}
+              style={{ marginTop: 16, minHeight: 52, borderRadius: 14, backgroundColor: COLORS.gold, alignItems: 'center', justifyContent: 'center',
+                opacity: (!val.ok || sinCobroBusy) ? 0.5 : 1 }}>
+              {sinCobroBusy
+                ? <ActivityIndicator color={COLORS.bg} />
+                : <Text style={{ fontSize: 17, color: COLORS.bg, fontWeight: '700' }}>Cerrar sin cobro</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity disabled={sinCobroBusy} onPress={cerrarSinCobroSheet} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
+              <Text style={{ color: COLORS.text3 }}>Volver</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
   const confirmarCobro = async () => {
     if (!cobro || cobroBusy) return;                 // a second tap while the first is in flight does nothing
     const { barbero, entry } = cobro;
@@ -784,6 +856,10 @@ export default function AdminScreen({ onLogout, catalogo }) {
                   <TouchableOpacity disabled={!listo} onPress={() => abrirCobro(barb, { ...enCurso, id })}
                     style={{ backgroundColor: COLORS.gold, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, opacity: listo ? 1 : 0.4 }}>
                     <Text style={{ fontSize: 13, color: COLORS.bg, fontWeight: '700' }}>Cobrar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity disabled={!listo} onPress={() => abrirSinCobro(barb, { ...enCurso, id })}
+                    style={{ minHeight: 44, justifyContent: 'center', marginTop: 2, opacity: listo ? 1 : 0.4 }}>
+                    <Text style={{ fontSize: 12, color: COLORS.text2, textDecorationLine: 'underline' }}>Cerrar sin cobro</Text>
                   </TouchableOpacity>
                   {motivo && <Text style={{ fontSize: 10, color: COLORS.text3, marginTop: 4, textAlign: 'right' }}>{motivo}</Text>}
                 </View>
@@ -1093,6 +1169,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
       )}
 
       {renderCobroSheet()}
+      {renderSinCobroSheet()}
     </View>
   );
 }
