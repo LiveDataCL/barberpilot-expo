@@ -646,6 +646,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
     if (!cobro || cobroBusy) return;                 // a second tap while the first is in flight does nothing
     const { barbero, entry } = cobro;
     if (!barbero || !barbero.bid) { setCobroMsg({ texto: 'No encuentro al barbero de este servicio. Revisa la silla.' }); return; }
+    if (!entry.id) { setCobroMsg({ texto: 'Falta el ID del servicio. Actualiza la pantalla antes de cobrar.' }); return; }
     const propina = propinaCalculada(cobroPropinaModo, precioDelServicio(catalogo, entry.service) || 0, cobroOtro);
     const est = estadoCobro({ catalogo, servicio: entry.service, pago: cobroPago, propina, busy: false });
     if (!est.puedeConfirmar) { setCobroMsg({ texto: est.motivo }); return; }
@@ -691,7 +692,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
               {est.metodos.length === 0
                 ? <Text style={{ fontSize: 13, color: COLORS.text3 }}>{catalogo && catalogo.cargando ? 'Cargando métodos de pago…' : 'Sin métodos de pago configurados.'}</Text>
                 : est.metodos.map((m) => chip(cobroPago === m.clave, () => setCobroPago(m.clave),
-                    m.label + (m.pct != null ? ' · ' + m.pct + '%' : '')))}
+                    m.label))}
             </View>
 
             <Text style={s.cardTitle}>Propina</Text>
@@ -770,14 +771,23 @@ export default function AdminScreen({ onLogout, catalogo }) {
               </Text>
             </View>
             {b.state === 'cortando' && (() => {
-              const barb = barberos.find((x) => x.queue_id === cola);
-              const entry = barb ? enServicio[barb.bid] : null;
-              return entry ? (
-                <TouchableOpacity onPress={() => abrirCobro(barb, entry)}
-                  style={{ backgroundColor: COLORS.gold, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 }}>
-                  <Text style={{ fontSize: 13, color: COLORS.bg, fontWeight: '700' }}>Cobrar</Text>
-                </TouchableOpacity>
-              ) : null;
+              // The queue id comes from the Sillas state (server). Without it, Cobrar stays off, with the reason shown.
+              const barb = barberos.find((x) => x.bid === b.bid);
+              const enCurso = barb ? enServicio[barb.bid] : null;
+              // The id is the server's: queue_id of the service in progress (control board). When the Sillas state also carries
+              // an id, the two must agree; otherwise Cobrar stays off with the reason.
+              const id = enCurso ? enCurso.queue_id : null;
+              const listo = !!id && (b.queue_id == null || b.queue_id === id);
+              const motivo = !enCurso ? 'Actualiza la pantalla' : (!id ? 'Sin ID del servicio: actualiza la pantalla' : (!listo ? 'Actualiza la pantalla' : null));
+              return (
+                <View style={{ marginRight: 8, alignItems: 'flex-end', maxWidth: 130 }}>
+                  <TouchableOpacity disabled={!listo} onPress={() => abrirCobro(barb, { ...enCurso, id })}
+                    style={{ backgroundColor: COLORS.gold, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, opacity: listo ? 1 : 0.4 }}>
+                    <Text style={{ fontSize: 13, color: COLORS.bg, fontWeight: '700' }}>Cobrar</Text>
+                  </TouchableOpacity>
+                  {motivo && <Text style={{ fontSize: 10, color: COLORS.text3, marginTop: 4, textAlign: 'right' }}>{motivo}</Text>}
+                </View>
+              );
             })()}
             {puedeAccion && (
             <TouchableOpacity
