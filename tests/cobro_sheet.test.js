@@ -118,7 +118,27 @@ ok('server errors become Spanish reasons; unknown ones show their code', () => {
   assert.strictEqual(C.mensajeDeRespuesta(500, {}).estado, 'red');
 });
 
+ok('close without a charge: reason is 5 to 120 characters, the quick picks are the three agreed', () => {
+  assert.strictEqual(C.validarMotivo('no').ok, false);
+  assert.strictEqual(C.validarMotivo('  abcd  ').ok, false);
+  assert.strictEqual(C.validarMotivo('abcde').ok, true);
+  assert.strictEqual(C.validarMotivo('x'.repeat(121)).ok, false);
+  assert.strictEqual(C.validarMotivo('x'.repeat(120)).ok, true);
+  assert.deepStrictEqual(C.MOTIVOS_RAPIDOS, ['Cliente se retiró', 'Servicio de cortesía', 'Error de registro']);
+});
+
 (async () => {
+  // Close without a charge: the server's answers become the reasons shown
+  const fake = (status, json) => async () => ({ ok: status < 300, status, json: async () => json });
+  const motivoCorto = await C.cerrarSinCobro(fake(200, { ok: true }), { queue_id: 1, motivo: 'no' });
+  assert.strictEqual(motivoCorto.estado, 'motivo');
+  const okSinCobro = await C.cerrarSinCobro(fake(200, { ok: true }), { queue_id: 1, motivo: 'Cliente se retiró' });
+  assert.strictEqual(okSinCobro.estado, 'ok');
+  assert.strictEqual((await C.cerrarSinCobro(fake(403, { ok: false, error: 'solo_admin_o_encargado' }), { queue_id: 1, motivo: 'Error de registro' })).estado, 'sesion');
+  assert.strictEqual((await C.cerrarSinCobro(fake(400, { ok: false, error: 'motivo_requerido', detalle: 'Escribe el motivo.' }), { queue_id: 1, motivo: 'Error de registro' })).mensaje, 'Escribe el motivo.');
+  assert.strictEqual((await C.cerrarSinCobro(fake(409, { ok: false, error: 'sin_venta' }), { queue_id: 1, motivo: 'Error de registro' })).estado, 'rechazado');
+  assert.strictEqual((await C.cerrarSinCobro(fake(500, {}), { queue_id: 1, motivo: 'Error de registro' })).estado, 'red');
+  n++; console.log('PASS close without a charge: answers mapped to Spanish reasons');
   await (async () => {
     const red = await C.enviarCobro(async () => { throw new Error('offline'); }, { queue_id: 1, bid: 'b1', pago: 'efectivo', propina: 0 });
     assert.strictEqual(red.estado, 'red');

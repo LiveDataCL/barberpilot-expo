@@ -117,3 +117,38 @@ export async function enviarCobro(fetchAutenticado, body) {
   if (r.ok && j.ok) return { estado: 'ok', data: j, mensaje: 'Cobro registrado.' };
   return mensajeDeRespuesta(r.status, j);
 }
+
+// Cerrar sin cobro (Sillas, admin): closing a service without a charge. The server requires a reason (5 to 120 characters),
+// an admin or encargado session, and records the actor in the audit. The entry leaves the counts and the learning.
+export const MOTIVOS_RAPIDOS = ['Cliente se retiró', 'Servicio de cortesía', 'Error de registro'];
+
+export function validarMotivo(texto) {
+  const t = String(texto || '').trim();
+  if (t.length < 5) return { ok: false, motivo: t, mensaje: 'Escribe el motivo: mínimo 5 letras.' };
+  if (t.length > 120) return { ok: false, motivo: t, mensaje: 'El motivo no puede superar 120 caracteres.' };
+  return { ok: true, motivo: t, mensaje: null };
+}
+
+export async function cerrarSinCobro(fetchAutenticado, { queue_id, motivo }) {
+  const v = validarMotivo(motivo);
+  if (!v.ok) return { estado: 'motivo', mensaje: v.mensaje };
+  let r;
+  try {
+    r = await fetchAutenticado('/queue/' + queue_id + '/status', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'DONE', sin_cobro: true, motivo: v.motivo }),
+    });
+  } catch {
+    return { estado: 'red', mensaje: 'No se pudo cerrar por la red. Revisa la silla antes de intentar otra vez.' };
+  }
+  let j = {};
+  try { j = await r.json(); } catch { /* non-JSON: handled by status */ }
+  if (r.ok && j.ok) return { estado: 'ok', mensaje: 'Servicio cerrado sin cobro.' };
+  if (r.status === 403) return { estado: 'sesion', mensaje: 'Solo administración o encargado puede cerrar sin cobro.' };
+  if (r.status === 401) return { estado: 'sesion', mensaje: 'Tu sesión venció. Ingresa de nuevo.' };
+  if (r.status === 400 && j.error === 'motivo_requerido') return { estado: 'motivo', mensaje: j.detalle || 'Escribe el motivo (5 a 120 caracteres).' };
+  if (r.status === 404) return { estado: 'rechazado', mensaje: 'Este servicio ya no está en la silla. Revisa la pantalla.' };
+  if (r.status >= 500) return { estado: 'red', mensaje: 'El servidor respondió con error (código ' + r.status + '). Revisa la silla antes de intentar otra vez.' };
+  return { estado: 'rechazado', mensaje: j.detalle || ('No se cerró (código ' + r.status + ': ' + (j.error || 'sin detalle') + ').') };
+}
