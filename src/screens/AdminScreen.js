@@ -12,7 +12,7 @@ import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from 
 import { useBarberos } from '../hooks/useBarberos';
 import { api, fetchAutenticado } from '../services/api';
 import { kpisPorBarbero } from '../services/kpisBarberos';
-import { precioDelServicio, propinaCalculada, resumenCobro, metodosCobro, enviarCobro } from '../services/cobro';
+import { precioDelServicio, propinaCalculada, estadoCobro, enviarCobro } from '../services/cobro';
 import { botonesPago, comisionPreview, etiquetaPago } from '../services/pagos';
 const { width } = Dimensions.get('window');
 
@@ -632,30 +632,29 @@ export default function AdminScreen({ onLogout, catalogo }) {
   // ── Cobrar (Sillas, admin): the closing sheet. The server does the closing (POST /api/v2/sillas/cobrar). ──
   const [enServicio, setEnServicio] = useState({});   // bid → the in-service queue entry (from /queue/control)
   const [cobro, setCobro] = useState(null);           // the open sheet: { barbero, entry }
-  const [cobroPago, setCobroPago] = useState('efectivo');
+  const [cobroPago, setCobroPago] = useState(null);   // no method is preselected: the cashier chooses
   const [cobroPropinaModo, setCobroPropinaModo] = useState('ninguna');
   const [cobroOtro, setCobroOtro] = useState('');
   const [cobroBusy, setCobroBusy] = useState(false);
   const [cobroMsg, setCobroMsg] = useState(null);
   const abrirCobro = (barbero, entry) => {
-    setCobroPago('efectivo'); setCobroPropinaModo('ninguna'); setCobroOtro(''); setCobroMsg(null);
+    setCobroPago(null); setCobroPropinaModo('ninguna'); setCobroOtro(''); setCobroMsg(null);
     setCobro({ barbero, entry });
   };
   const cerrarCobro = () => { if (!cobroBusy) setCobro(null); };
   const confirmarCobro = async () => {
     if (!cobro || cobroBusy) return;                 // a second tap while the first is in flight does nothing
-    const precio = precioDelServicio(catalogo, cobro.entry.service);
-    if (!precio) { setCobroMsg({ texto: 'No encuentro el precio de este servicio. Avisa al administrador antes de cobrar.' }); return; }
-    const propina = propinaCalculada(cobroPropinaModo, precio, cobroOtro);
-    const resumen = resumenCobro(catalogo, cobroPago, precio, propina);
+    const { barbero, entry } = cobro;
+    if (!barbero || !barbero.bid) { setCobroMsg({ texto: 'No encuentro al barbero de este servicio. Revisa la silla.' }); return; }
+    const propina = propinaCalculada(cobroPropinaModo, precioDelServicio(catalogo, entry.service) || 0, cobroOtro);
+    const est = estadoCobro({ catalogo, servicio: entry.service, pago: cobroPago, propina, busy: false });
+    if (!est.puedeConfirmar) { setCobroMsg({ texto: est.motivo }); return; }
     setCobroBusy(true); setCobroMsg(null);
-    const res = await enviarCobro(fetchAutenticado, {
-      queue_id: cobro.entry.id, bid: cobro.barbero.bid, pago: cobroPago, propina,
-    });
+    const res = await enviarCobro(fetchAutenticado, { queue_id: entry.id, bid: barbero.bid, pago: cobroPago, propina });
     setCobroBusy(false);
     if (res.estado === 'ok') {
       setCobro(null);
-      Alert.alert('Cobro registrado', (resumen ? resumen.textoMonto + ' · barbero ' + resumen.textoBarbero : '') + '. La silla queda libre.');
+      Alert.alert('Cobro registrado', est.resumen.textoMonto + ' · barbero ' + est.resumen.textoBarbero + '. La silla queda libre.');
     } else {
       setCobroMsg({ texto: res.mensaje });
     }
@@ -663,52 +662,42 @@ export default function AdminScreen({ onLogout, catalogo }) {
   };
   const renderCobroSheet = () => {
     if (!cobro) return null;
-    const { barbero, entry } = cobro;
-    const precio = precioDelServicio(catalogo, entry.service);
-    const propina = precio ? propinaCalculada(cobroPropinaModo, precio, cobroOtro) : 0;
-    const resumen = precio ? resumenCobro(catalogo, cobroPago, precio, propina) : null;
+    const { entry } = cobro;
+    const propina = propinaCalculada(cobroPropinaModo, precioDelServicio(catalogo, entry.service) || 0, cobroOtro);
+    const est = estadoCobro({ catalogo, servicio: entry.service, pago: cobroPago, propina, busy: cobroBusy });
     const fila = (etq, val, color) => (
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
         <Text style={{ fontSize: 14, color: COLORS.text2 }}>{etq}</Text>
         <Text style={{ fontSize: 14, color: color || COLORS.text, fontWeight: '600' }}>{val}</Text>
       </View>
     );
+    const chip = (on, onPress, texto) => (
+      <TouchableOpacity disabled={cobroBusy} onPress={onPress}
+        style={{ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1,
+          borderColor: on ? COLORS.gold : COLORS.border, backgroundColor: on ? 'rgba(201,168,76,.12)' : COLORS.s2 }}>
+        <Text style={{ color: on ? COLORS.gold : COLORS.text2, fontWeight: '600' }}>{texto}</Text>
+      </TouchableOpacity>
+    );
     return (
       <Modal visible transparent animationType="slide" onRequestClose={cerrarCobro}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.6)', justifyContent: 'flex-end' }}>
           <ScrollView style={{ maxHeight: '90%' }} contentContainerStyle={{ backgroundColor: COLORS.s1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32 }}>
-            <Text style={s.secLbl}>COBRAR SERVICIO · {barbero ? barbero.nombre : ''}</Text>
+            <Text style={s.secLbl}>COBRAR SERVICIO · {cobro.barbero ? cobro.barbero.nombre : ''}</Text>
             <Text style={{ fontSize: 18, color: COLORS.text, fontWeight: '600' }}>{entry.client_name || 'Cliente'}</Text>
             <Text style={{ fontSize: 14, color: COLORS.text2, marginTop: 2, marginBottom: 14 }}>{entry.service}</Text>
 
             <Text style={s.cardTitle}>Método de pago</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-              {metodosCobro(catalogo).map((m) => {
-                const on = cobroPago === m.clave;
-                return (
-                  <TouchableOpacity key={m.clave} disabled={cobroBusy} onPress={() => setCobroPago(m.clave)}
-                    style={{ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1,
-                      borderColor: on ? COLORS.gold : COLORS.border, backgroundColor: on ? 'rgba(201,168,76,.12)' : COLORS.s2 }}>
-                    <Text style={{ color: on ? COLORS.gold : COLORS.text2, fontWeight: '600' }}>
-                      {m.etiqueta}{m.pct != null ? ' · ' + m.pct + '%' : ''}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {est.metodos.length === 0
+                ? <Text style={{ fontSize: 13, color: COLORS.text3 }}>{catalogo && catalogo.cargando ? 'Cargando métodos de pago…' : 'Sin métodos de pago configurados.'}</Text>
+                : est.metodos.map((m) => chip(cobroPago === m.clave, () => setCobroPago(m.clave),
+                    m.label + (m.pct != null ? ' · ' + m.pct + '%' : '')))}
             </View>
 
             <Text style={s.cardTitle}>Propina</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-              {[['ninguna', 'Sin propina'], ['diez', '10 %'], ['otro', 'Otro monto']].map(([k, etq]) => {
-                const on = cobroPropinaModo === k;
-                return (
-                  <TouchableOpacity key={k} disabled={cobroBusy} onPress={() => setCobroPropinaModo(k)}
-                    style={{ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1,
-                      borderColor: on ? COLORS.gold : COLORS.border, backgroundColor: on ? 'rgba(201,168,76,.12)' : COLORS.s2 }}>
-                    <Text style={{ color: on ? COLORS.gold : COLORS.text2, fontWeight: '600' }}>{etq}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {[['ninguna', 'Sin propina'], ['diez', '10 %'], ['otro', 'Otro monto']].map(([k, etq]) =>
+                chip(cobroPropinaModo === k, () => setCobroPropinaModo(k), etq))}
             </View>
             {cobroPropinaModo === 'otro' && (
               <TextInput value={cobroOtro} onChangeText={(t) => setCobroOtro(t.replace(/[^0-9]/g, ''))}
@@ -719,23 +708,24 @@ export default function AdminScreen({ onLogout, catalogo }) {
             )}
 
             <View style={[s.card, { marginTop: 10 }]}>
-              {resumen ? (
+              {est.resumen ? (
                 <>
-                  {fila('Monto del servicio', resumen.textoMonto)}
-                  {fila('Barbero recibe', resumen.textoBarbero, COLORS.ok)}
-                  {fila('Negocio retiene', resumen.textoNegocio, COLORS.gold)}
-                  {resumen.propina > 0 && <Text style={{ fontSize: 12, color: COLORS.text3, marginTop: 4 }}>La propina va completa al barbero.</Text>}
+                  {fila('Monto del servicio', est.resumen.textoMonto)}
+                  {fila('Barbero recibe', est.resumen.textoBarbero, COLORS.ok)}
+                  {fila('Negocio retiene', est.resumen.textoNegocio, COLORS.gold)}
+                  {est.resumen.propina > 0 && <Text style={{ fontSize: 12, color: COLORS.text3, marginTop: 4 }}>La propina va completa al barbero.</Text>}
                 </>
               ) : (
-                <Text style={{ fontSize: 14, color: COLORS.red }}>No encuentro el precio de este servicio. Avisa al administrador.</Text>
+                <Text style={{ fontSize: 14, color: COLORS.text2 }}>{est.motivo}</Text>
               )}
             </View>
 
+            {est.motivo && est.resumen && <Text style={{ fontSize: 13, color: COLORS.text3, marginTop: 10 }}>{est.motivo}</Text>}
             {cobroMsg && <Text style={{ fontSize: 14, color: COLORS.red, marginTop: 12 }}>{cobroMsg.texto}</Text>}
 
-            <TouchableOpacity disabled={!resumen || cobroBusy} onPress={confirmarCobro}
+            <TouchableOpacity disabled={!est.puedeConfirmar || cobroBusy} onPress={confirmarCobro}
               style={{ marginTop: 16, minHeight: 52, borderRadius: 14, backgroundColor: COLORS.gold, alignItems: 'center', justifyContent: 'center',
-                opacity: (!resumen || cobroBusy) ? 0.5 : 1 }}>
+                opacity: (!est.puedeConfirmar || cobroBusy) ? 0.5 : 1 }}>
               {cobroBusy
                 ? <ActivityIndicator color={COLORS.bg} />
                 : <Text style={{ fontSize: 17, color: COLORS.bg, fontWeight: '700' }}>Confirmar cobro</Text>}
