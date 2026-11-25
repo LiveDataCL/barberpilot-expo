@@ -1,5 +1,9 @@
+// The preview guard must be the FIRST import: it installs the fetch refusal before any other module can capture fetch.
+import './src/services/previewGuard';
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import PreviewShell from './src/components/PreviewShell';
+import { ES_PREVIEW } from './src/services/previewGuard';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -67,13 +71,15 @@ const TABS_BARBERO = [
 
 // Fire-and-forget from the login effect; the core never throws (see src/services/pushRegistro.js).
 function registrarPushToken(bid) {
+  // preview: push registration is off (the preview has no Firebase client, and its token would be sent to the production API)
+  if (ES_PREVIEW) return Promise.resolve();
   return registrarPushTokenCore(bid, {
     Notifications, Platform, Device, Constants, fetch, apiUrl: API_URL,
     log: { info: console.log, error: console.error },
   });
 }
 
-export default function App() {
+function AppInterna() {
   const [usuario,      setUsuario]      = useState(null);
   const [pinAdminInicial, setPinAdminInicial] = useState(false);
   const [setupPin,     setSetupPin]     = useState(null); // { perfil, loginPin } when pin_set=false
@@ -479,3 +485,12 @@ const s = StyleSheet.create({
   staleBannerTxt:   { color: '#f0ebe0', fontSize: 11, fontFamily: 'Montserrat_500Medium',
     textAlign: 'center' },
 });
+
+// Production: PreviewShell renders the App unchanged. Preview: a banner, or a blocking screen if the guard did not confirm.
+export default function App() {
+  return (
+    <PreviewShell>
+      <AppInterna />
+    </PreviewShell>
+  );
+}
