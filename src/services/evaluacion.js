@@ -33,12 +33,12 @@ export const TEXTOS = Object.freeze({
 
 // The exact shape of the API's answer (services/evaluacionIndividual.js DTO_ALLOWLIST). true = a value, an object = nested keys, [x] = a list.
 export const FORMA_DTO = Object.freeze({
-  barberName: true, month: true, totalScore: true, tier: true,
+  barberName: true, month: true, totalScore: true, tier: true, tierNombre: true,
   disqualified: { active: true, reason: true },
   components: {
     production: { earned: true, max: true, detail: { servicios: true, metaServicios: true } },
     conduct: { earned: true, max: true },
-    punctuality: { earned: true, max: true, detail: { lateBlocks: true } },
+    punctuality: { earned: true, max: true, detail: { lateBlocks: true, diasSinEntrada: true, diasSinSalida: true } },
     upselling: { earned: true, max: true, detail: { conProducto: true, servicios: true, umbralPct: true } },
     tips: { earned: true, max: true },
   },
@@ -81,6 +81,15 @@ export function horaDe(iso) {
 }
 
 const coma = (x) => String(Math.round(Number(x) * 10) / 10).replace('.', ',');
+// conduct averages: always two decimals, a comma as the decimal mark ("4,00", "8,52"); the same rule as the panel
+const dos = (x) => Number(x).toFixed(2).replace('.', ',');
+// the days without a clock-in / clock-out mark, neutral wording (the same copy as the panel and the API hints); '' when there are none
+const sinMarca = (det) => {
+  const partes = [];
+  if (det.diasSinEntrada > 0) partes.push((det.diasSinEntrada === 1 ? 'Día' : 'Días') + ' sin marca de entrada: ' + det.diasSinEntrada);
+  if (det.diasSinSalida > 0) partes.push((det.diasSinSalida === 1 ? 'Día' : 'Días') + ' sin marca de salida: ' + det.diasSinSalida);
+  return partes.join(' · ');
+};
 
 // Decides what the screen shows. Input: the answer of the API (status, parsed body, or a network failure) and the cached last good answer.
 // Output: { tipo, ... }. Never shows cached data for a refusal (403) or a missing evaluation; the cache is used only when the API cannot be reached.
@@ -112,25 +121,25 @@ export function resolverEstado({ status = null, cuerpo = null, redErr = false, c
 export function vistaDe(dto) {
   const c = dto.components;
   const maximoTotal = c.production.max + c.conduct.max + c.punctuality.max + c.upselling.max + c.tips.max;
-  const tierTxt = dto.bonusPct == null ? TEXTOS.sinBono : (/^tier/i.test(String(dto.bonusTier)) ? dto.bonusTier : 'Tier ' + dto.bonusTier) + ' · ' + String(dto.bonusPct).replace('.', ',') + ' %';
+  const tierTxt = dto.bonusPct == null ? TEXTOS.sinBono : 'Estrato ' + dto.bonusTier + ' · ' + String(dto.bonusPct).replace('.', ',') + ' %';
   const puntos = [
     { clave: 'production', nombre: TEXTOS.componentes.production, puntos: `${coma(c.production.earned)} / ${c.production.max}`,
       detalle: `${c.production.detail.servicios} servicios · meta individual de servicios ${c.production.detail.metaServicios}` },
     { clave: 'conduct', nombre: TEXTOS.componentes.conduct, puntos: `${coma(c.conduct.earned)} / ${c.conduct.max}`, detalle: null },
     { clave: 'punctuality', nombre: TEXTOS.componentes.punctuality, puntos: `${coma(c.punctuality.earned)} / ${c.punctuality.max}`,
-      detalle: `bloques de atraso o salida anticipada: ${c.punctuality.detail.lateBlocks}` },
+      detalle: [`bloques de atraso o salida anticipada: ${c.punctuality.detail.lateBlocks}`, sinMarca(c.punctuality.detail)].filter(Boolean).join(' · ') },
     { clave: 'upselling', nombre: TEXTOS.componentes.upselling, puntos: `${coma(c.upselling.earned)} / ${c.upselling.max}`,
       detalle: `${c.upselling.detail.conProducto} de ${c.upselling.detail.servicios} servicios con producto (umbral ${c.upselling.detail.umbralPct} %)` },
     { clave: 'tips', nombre: TEXTOS.componentes.tips, puntos: `${coma(c.tips.earned)} / ${c.tips.max}`, detalle: null },
   ];
   const conducta = (dto.conductRows || []).map(r => ({
-    etiqueta: r.label, promedio: coma(r.monthlyAvg), tendencia: TEXTOS.tendencia[r.trend] || TEXTOS.tendencia.insufficient, tendenciaClave: r.trend,
+    etiqueta: r.label, promedio: dos(r.monthlyAvg), tendencia: TEXTOS.tendencia[r.trend] || TEXTOS.tendencia.insufficient, tendenciaClave: r.trend,
   }));
   return {
     titulo: dto.barberName,
     puntajeTxt: `${coma(dto.totalScore)}`,
     maximoTxt: `/ ${maximoTotal} pts`,
-    tier: dto.tier,
+    tier: dto.tierNombre ? dto.tier + ' · ' + dto.tierNombre : dto.tier,
     descalificado: dto.disqualified && dto.disqualified.active ? TEXTOS.descalificado : null,
     tierBono: tierTxt,
     bonoNota: TEXTOS.bono,

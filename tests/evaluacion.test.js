@@ -7,12 +7,12 @@ import fs from 'node:fs';
 import { TEXTOS, FORMA_DTO, esDtoValido, horaDe, mesDe, resolverEstado, vistaDe, textosDeLaVista } from '../src/services/evaluacion.js';
 
 const DTO = {
-  barberName: 'Didian', month: '2026-11', totalScore: 8.4, tier: 'Insuficiente',
+  barberName: 'Didian', month: '2026-11', totalScore: 8.4, tier: 'D', tierNombre: 'Insuficiente',
   disqualified: { active: false, reason: null },
   components: {
     production: { earned: 8.4, max: 40, detail: { servicios: 6, metaServicios: 128 } },
     conduct: { earned: 0, max: 30 },
-    punctuality: { earned: 15, max: 15, detail: { lateBlocks: 0 } },
+    punctuality: { earned: 12, max: 15, detail: { lateBlocks: 0, diasSinEntrada: 2, diasSinSalida: 1 } },
     upselling: { earned: 0, max: 10, detail: { conProducto: 0, servicios: 6, umbralPct: 10 } },
     tips: { earned: 5, max: 5 },
   },
@@ -143,8 +143,10 @@ test('the view shows the barber\'s own name only, with the panel\'s wording', ()
   assert.equal(v.proyeccion.texto, 'A este ritmo cierras el mes con 8,6 / 40 pts (estimación)');
 });
 
-test('bonus: tier and percentage only, with the comma decimal', () => {
-  assert.equal(vistaDe(DTO).tierBono, 'Tier A · 0,25 %');
+test('bonus: "Estrato" with the letter, the percentage with the comma decimal; no English word "Tier" anywhere', () => {
+  assert.equal(vistaDe(DTO).tierBono, 'Estrato A · 0,25 %');
+  assert.equal(vistaDe(DTO).tier, 'D · Insuficiente', 'the tier chip: letter and label, as in the panel');
+  assert.equal(/\bTier\b/.test(textosDeLaVista(vistaDe(DTO)).join(' | ')), false, 'no "Tier" word in the view');
   assert.equal(vistaDe(conDisq).tierBono, 'Sin bono este mes');
   assert.equal(vistaDe(conDisq).descalificado, 'Descalificado este mes');
   assert.equal(vistaDe(DTO).descalificado, null);
@@ -163,6 +165,19 @@ test('components and trend labels', () => {
   assert.equal(v.conducta[0].tendencia, '● estable');
   assert.equal(v.conducta[2].tendencia, 'sin tendencia aún');
   assert.equal(v.copiados, 'Días con conducta copiada (sin cambios): 2');
+});
+
+test('conduct averages always have two decimals, the same as the panel', () => {
+  const v = vistaDe(DTO);
+  assert.deepEqual(v.conducta.map(r => r.promedio), ['0,00', '6,50', '4,00']);
+});
+
+test('punctuality detail: the late blocks and the days without a mark (singular / plural, neutral wording)', () => {
+  const det = vistaDe(DTO).puntos.find(p => p.clave === 'punctuality').detalle;
+  assert.equal(det, 'bloques de atraso o salida anticipada: 0 · Días sin marca de entrada: 2 · Día sin marca de salida: 1');
+  const uno = vistaDe({ ...DTO, components: { ...DTO.components, punctuality: { ...DTO.components.punctuality, detail: { lateBlocks: 0, diasSinEntrada: 1, diasSinSalida: 0 } } } })
+    .puntos.find(p => p.clave === 'punctuality').detalle;
+  assert.equal(uno, 'bloques de atraso o salida anticipada: 0 · Día sin marca de entrada: 1');
 });
 
 test('no estimate → no estimate line; no hints → no hints', () => {
