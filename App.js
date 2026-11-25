@@ -15,8 +15,10 @@ import { useFonts as useFontsMontserrat,
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
+import { borrarCache } from './src/services/evaluacionCache';
 import Constants from 'expo-constants';
 import { API_URL, IS_STAGING, COLORS } from './src/constants';
+import { registrarPushToken as registrarPushTokenCore } from './src/services/pushRegistro';
 import { loadCachedBarberos } from './src/hooks/useBarberos';
 import LoginScreen       from './src/screens/LoginScreen';
 import { onSesionExpirada } from './src/services/api';
@@ -63,79 +65,12 @@ const TABS_BARBERO = [
   { id: 'config',     label: 'Config',    icon: 'settings'    },
 ];
 
-async function registrarPushToken(bid) {
-  const log = ['bid: ' + bid, 'OS: ' + Platform.OS, 'isDevice: ' + Device.isDevice];
-  try {
-    if (Platform.OS === 'web') {
-      console.log('[PUSH]', log.join(' | ') + ' → ABORT: web');
-      return;
-    }
-
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'BarberPilot',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#c9a84c',
-        sound: 'default',
-      });
-      log.push('canal: ok');
-    }
-
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    log.push('perm existente: ' + existing);
-
-    let finalStatus = existing;
-    if (existing !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-      log.push('nuevo perm: ' + finalStatus);
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('[PUSH]', log.join(' | ') + ' → ABORT: permiso denegado');
-      return;
-    }
-
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ??
-      Constants.manifest2?.extra?.expoClient?.extra?.eas?.projectId ??
-      Constants.manifest?.extra?.eas?.projectId;
-
-    log.push('projectId: ' + (projectId ? projectId.slice(0, 8) + '...' : 'NONE'));
-
-    if (!projectId) {
-      console.log('[PUSH]', log.join(' | ') + ' → ABORT: sin projectId');
-      return;
-    }
-
-    log.push('obteniendo token...');
-    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-    const token = tokenData?.data;
-    log.push('token: ' + (token ? token.slice(0, 25) + '...' : 'VACÍO'));
-
-    if (!token) {
-      console.log('[PUSH]', log.join(' | ') + ' → ABORT: token vacío');
-      return;
-    }
-
-    log.push('enviando al API...');
-    const response = await fetch(
-      API_URL + '/push/token',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bid, token }),
-      }
-    );
-    const data = await response.json();
-    log.push('api: ' + JSON.stringify(data));
-
-    console.log(data.ok ? '[PUSH ✅]' : '[PUSH ❌]', log.join(' | '));
-
-  } catch (error) {
-    console.error('[PUSH ERROR]', log.join(' | '), 'ERROR:', error.message);
-  }
+// Fire-and-forget from the login effect; the core never throws (see src/services/pushRegistro.js).
+function registrarPushToken(bid) {
+  return registrarPushTokenCore(bid, {
+    Notifications, Platform, Device, Constants, fetch, apiUrl: API_URL,
+    log: { info: console.log, error: console.error },
+  });
 }
 
 export default function App() {
@@ -332,6 +267,8 @@ export default function App() {
     try {
       await SecureStore.deleteItemAsync('bp_auth_token');
     } catch {}
+    // the barber's own evaluation stays on this device only while signed in
+    if (usuario?.bid) borrarCache(usuario.bid);
     setUsuario(null);
     setSetupPin(null);
     setTab('hoy');
