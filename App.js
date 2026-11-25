@@ -15,6 +15,7 @@ import { useFonts as useFontsMontserrat,
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
+import { borrarCache } from './src/services/evaluacionCache';
 import Constants from 'expo-constants';
 import { API_URL, IS_STAGING, COLORS } from './src/constants';
 import { loadCachedBarberos } from './src/hooks/useBarberos';
@@ -332,6 +333,8 @@ export default function App() {
     try {
       await SecureStore.deleteItemAsync('bp_auth_token');
     } catch {}
+    // the barber's own evaluation stays on this device only while signed in
+    if (usuario?.bid) borrarCache(usuario.bid);
     setUsuario(null);
     setSetupPin(null);
     setTab('hoy');

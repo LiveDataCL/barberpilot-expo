@@ -7,6 +7,7 @@ import { API_URL, COLORS, fmt, fmtM, mesPeriodo, hoy, TODOS_PERFILES } from '../
 import * as SecureStore from 'expo-secure-store';
 import { api, fetchAutenticado } from '../services/api';
 import { etiquetaPago, iconoPago } from '../services/pagos';
+import MiEvaluacion from '../components/MiEvaluacion';
 
 const PERIODOS = [
   { id: 'hoy',    label: 'Hoy'           },
@@ -28,6 +29,8 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
   const [pinNuevo,   setPinNuevo]   = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
   const [pinMsg,     setPinMsg]     = useState(null);
+  // Perfil or Mi evaluación (barber sessions only; the master-PIN admin never reaches this screen with the tab)
+  const [vista, setVista] = useState('perfil');
 
   const cargarDatos = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -160,6 +163,23 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
     }
   };
 
+  const puedeEvaluacion = !!barbero && barbero.rol === 'barbero';
+  const segmentos = puedeEvaluacion ? (
+    <View style={s.segmentos} accessibilityRole="tablist">
+      {[['perfil', 'Perfil'], ['evaluacion', 'Mi evaluación']].map(([id, etiqueta]) => (
+        <TouchableOpacity key={id} style={[s.segmento, vista === id && s.segmentoOn]}
+          onPress={() => setVista(id)} accessibilityRole="tab" accessibilityState={{ selected: vista === id }}>
+          <Text style={[s.segmentoTxt, vista === id && s.segmentoTxtOn]}>{etiqueta}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  ) : null;
+  if (puedeEvaluacion && vista === 'evaluacion') return (
+    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      {segmentos}
+      <MiEvaluacion barbero={barbero} />
+    </View>
+  );
   return (
     <ScrollView
       style={s.scroll} contentContainerStyle={s.content}
@@ -169,6 +189,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
           tintColor={COLORS.gold} colors={[COLORS.gold]} />
       }
     >
+      {segmentos}
       {/* ── FILTRO PERÍODO ─────────────────────────────── */}
       <Text style={s.secLbl}>PERÍODO</Text>
       <View style={s.chips}>
@@ -319,6 +340,11 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
 }
 
 const s = StyleSheet.create({
+  segmentos: { flexDirection: 'row', gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 8 },
+  segmento: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border2, backgroundColor: COLORS.s1, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+  segmentoOn: { borderColor: COLORS.gold, backgroundColor: COLORS.s3 },
+  segmentoTxt: { color: COLORS.text2, fontSize: 14, fontWeight: '600' },
+  segmentoTxtOn: { color: COLORS.gold2 },
   scroll:   { flex: 1, backgroundColor: COLORS.bg },
   content:  { padding: 18, paddingBottom: 40 },
   center:   { padding: 40, alignItems: 'center' },
