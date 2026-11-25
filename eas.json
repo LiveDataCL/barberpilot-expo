@@ -13,6 +13,16 @@
       "distribution": "internal",
       "channel": "staging"
     },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "preview"
+      }
+    },
     "internal": {
       "autoIncrement": true,
       "distribution": "internal",
