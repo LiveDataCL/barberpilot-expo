@@ -8,6 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 import { api, fetchAutenticado } from '../services/api';
 import { etiquetaPago, iconoPago } from '../services/pagos';
 import MiEvaluacion from '../components/MiEvaluacion';
+import LimiteEvaluacion from '../components/LimiteEvaluacion';
 
 const PERIODOS = [
   { id: 'hoy',    label: 'Hoy'           },
@@ -177,7 +178,9 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
   if (puedeEvaluacion && vista === 'evaluacion') return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {segmentos}
-      <MiEvaluacion barbero={barbero} />
+      <LimiteEvaluacion>
+        <MiEvaluacion barbero={barbero} />
+      </LimiteEvaluacion>
     </View>
   );
   return (
