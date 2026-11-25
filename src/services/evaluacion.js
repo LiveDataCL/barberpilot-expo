@@ -14,8 +14,9 @@ export const TEXTOS = Object.freeze({
   sesion: 'Tu sesión expiró. Vuelve a ingresar.',
   descalificado: 'Descalificado este mes',
   bono: 'Se paga solo si la meta del grupo se cumple.',
-  metaCumplida: 'Meta del grupo: cumplida',
-  metaNoCumplida: 'Meta del grupo: aún no cumplida',
+  // the local's billing goal, percentages only (owner decision); the same copy as the panel
+  metaLocal: (cumplida, faltante) => `Meta del local: ${cumplida} % cumplida · ${faltante} % faltante`,
+  metaLocalCumplida: (faltante) => `Meta cumplida · ${faltante} % faltante`,
   sinBono: 'Sin bono este mes',
   proyeccion: (pts, max) => `A este ritmo cierras el mes con ${pts} / ${max} pts (estimación)`,
   proyeccionBase: (dias) => `Calculado con ${dias} días de trabajo transcurridos. No cambia el puntaje oficial.`,
@@ -44,22 +45,29 @@ export const FORMA_DTO = Object.freeze({
   },
   conductRows: [{ label: true, monthlyAvg: true, trend: true }],
   carryOverDays: true, bonusTier: true, bonusPct: true, groupGoalStatus: true,
+  metaLocal: { cumplidaPct: true, faltantePct: true, cumplida: true },   // null when no goal is configured
   isProvisional: true, computedAt: true,
   improvementHints: [{ component: true, text: true }],
   productionProjection: { projectedPoints: true, max: true, basisDays: true, isEstimate: true },
 });
 
+// The only keys that may be null: the estimate, and the local goal when no goal is configured. Anything else null is refused.
+const ANULABLES = ['.productionProjection', '.metaLocal'];
+// The keys that may be ABSENT: an answer from an API that does not send the local goal yet (deploy order) shows no block, instead of being refused.
+// Absent means "no block"; it never grants access to anything, so the rest of the allowlist stays strict.
+const OPCIONALES = ['.metaLocal'];
+
 // Every key present and no extra key, at every level. Returns the list of problems (empty = valid).
 export function problemasDeForma(obj, forma, ruta = '') {
   if (forma === true) return [];
-  if (obj === null) return ruta === '.productionProjection' ? [] : [ruta + ' es nulo'];   // null only for the estimate, when there is none
+  if (obj === null) return ANULABLES.includes(ruta) ? [] : [ruta + ' es nulo'];
   if (Array.isArray(forma)) {
     if (!Array.isArray(obj)) return [ruta + ' no es lista'];
     return obj.flatMap((x, i) => problemasDeForma(x, forma[0], ruta + '[' + i + ']'));
   }
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return [ruta + ' no es objeto'];
   const sobran = Object.keys(obj).filter(k => !(k in forma)).map(k => ruta + '.' + k + ' sobra');
-  const faltan = Object.keys(forma).filter(k => !(k in obj)).map(k => ruta + '.' + k + ' falta');
+  const faltan = Object.keys(forma).filter(k => !(k in obj) && !OPCIONALES.includes(ruta + '.' + k)).map(k => ruta + '.' + k + ' falta');
   const dentro = Object.keys(obj).filter(k => k in forma).flatMap(k => problemasDeForma(obj[k], forma[k], ruta + '.' + k));
   return [...sobran, ...faltan, ...dentro];
 }
@@ -143,7 +151,14 @@ export function vistaDe(dto) {
     descalificado: dto.disqualified && dto.disqualified.active ? TEXTOS.descalificado : null,
     tierBono: tierTxt,
     bonoNota: TEXTOS.bono,
-    metaGrupo: dto.groupGoalStatus === 'met' ? TEXTOS.metaCumplida : TEXTOS.metaNoCumplida,
+    // percentages only: integers, floored in the API; clamped again here so a bar never leaves 0..100. Null → no block.
+    metaLocal: dto.metaLocal ? (() => {
+      const cum = Math.max(0, Math.min(100, Math.floor(Number(dto.metaLocal.cumplidaPct)) || 0));
+      const fal = Math.max(0, Math.min(100, Math.floor(Number(dto.metaLocal.faltantePct)) || 0));
+      const cumplida = dto.metaLocal.cumplida === true;
+      return { cumplida, cumplidaPct: cumplida ? 100 : cum, faltantePct: cumplida ? 0 : fal,
+        texto: cumplida ? TEXTOS.metaLocalCumplida(0) : TEXTOS.metaLocal(cum, fal) };
+    })() : null,
     proyeccion: dto.productionProjection
       ? { texto: TEXTOS.proyeccion(coma(dto.productionProjection.projectedPoints), dto.productionProjection.max), base: TEXTOS.proyeccionBase(dto.productionProjection.basisDays) }
       : null,
@@ -157,7 +172,7 @@ export function vistaDe(dto) {
 
 // Every text of the view, flattened: used by the tests to check the copy and the absence of money and other barbers.
 export function textosDeLaVista(v) {
-  return [v.titulo, v.puntajeTxt, v.maximoTxt, v.tier, v.descalificado, v.tierBono, v.bonoNota, v.metaGrupo, v.provisional, v.copiados,
+  return [v.titulo, v.puntajeTxt, v.maximoTxt, v.tier, v.descalificado, v.tierBono, v.bonoNota, v.metaLocal && v.metaLocal.texto, v.provisional, v.copiados,
     ...(v.proyeccion ? [v.proyeccion.texto, v.proyeccion.base] : []),
     ...v.puntos.flatMap(p => [p.nombre, p.puntos, p.detalle]),
     ...v.conducta.flatMap(r => [r.etiqueta, r.promedio, r.tendencia]),

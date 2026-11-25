@@ -79,7 +79,15 @@ export default function MiEvaluacion({ barbero }) {
       </View>
       <Text style={s.bono}>{v.tierBono}</Text>
       <Text style={s.bonoNota}>{v.bonoNota}</Text>
-      <Text style={s.meta}>{v.metaGrupo}</Text>
+      {v.metaLocal ? (
+        <View style={s.metaLocal}>
+          <Text style={s.metaLocalTxt}>{v.metaLocal.texto}</Text>
+          <View style={s.barra} accessibilityRole="progressbar" accessibilityLabel={v.metaLocal.texto}
+            accessibilityValue={{ min: 0, max: 100, now: v.metaLocal.cumplidaPct }}>
+            <View style={[s.barraRelleno, { width: v.metaLocal.cumplidaPct + '%' }, v.metaLocal.cumplida && s.barraOk]} />
+          </View>
+        </View>
+      ) : null}
 
       {v.descalificado ? (
         <View style={s.disq} accessibilityRole="alert"><Text style={s.disqTxt}>{v.descalificado}</Text></View>
@@ -147,6 +155,11 @@ const s = StyleSheet.create({
   bono: { fontSize: 15, color: COLORS.text },
   bonoNota: { fontSize: 13, color: COLORS.text2, marginBottom: 6 },
   meta: { fontSize: 14, color: COLORS.text2, marginBottom: 12 },
+  metaLocal: { marginBottom: 12 },
+  metaLocalTxt: { fontSize: 15, color: COLORS.text, marginBottom: 6 },
+  barra: { height: 10, borderRadius: 999, backgroundColor: COLORS.s2, borderColor: COLORS.border, borderWidth: 1, overflow: 'hidden' },
+  barraRelleno: { height: '100%', backgroundColor: COLORS.gold },
+  barraOk: { backgroundColor: COLORS.ok },
   disq: { backgroundColor: '#3a1414', borderColor: '#7a2a2a', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
   disqTxt: { color: '#f5b5b5', fontWeight: '700' },
   proyeccion: { backgroundColor: COLORS.s1, borderColor: COLORS.border2, borderWidth: 1, borderStyle: 'dashed', borderRadius: 10, padding: 12, marginBottom: 12 },

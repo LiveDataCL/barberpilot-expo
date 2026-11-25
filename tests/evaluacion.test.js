@@ -22,6 +22,7 @@ const DTO = {
     { label: 'Atención al cliente', monthlyAvg: 4, trend: 'insufficient' },
   ],
   carryOverDays: 2, bonusTier: 'A', bonusPct: 0.25, groupGoalStatus: 'not_met',
+  metaLocal: { cumplidaPct: 62, faltantePct: 38, cumplida: false },
   isProvisional: true, computedAt: '2026-11-25T15:09:00.000Z',
   improvementHints: [{ component: 'production', text: 'Te faltan 10 servicios para la meta individual de servicios del mes (hasta +30 pts)' }],
   productionProjection: { projectedPoints: 8.6, max: 40, basisDays: 21, isEstimate: true },
@@ -138,7 +139,7 @@ test('the view shows the barber\'s own name only, with the panel\'s wording', ()
   assert.equal(v.puntajeTxt, '8,4');
   assert.equal(v.maximoTxt, '/ 100 pts');
   assert.equal(v.provisional, 'Provisional hasta el cierre del mes');
-  assert.equal(v.metaGrupo, 'Meta del grupo: aún no cumplida');
+  assert.equal(v.metaLocal.texto, 'Meta del local: 62 % cumplida · 38 % faltante');
   assert.equal(v.bonoNota, 'Se paga solo si la meta del grupo se cumple.');
   assert.equal(v.proyeccion.texto, 'A este ritmo cierras el mes con 8,6 / 40 pts (estimación)');
 });
@@ -153,7 +154,40 @@ test('bonus: "Estrato" with the letter, the percentage with the comma decimal; n
 });
 
 test('group goal: a status only ("cumplida" / "aún no cumplida")', () => {
-  assert.equal(vistaDe({ ...DTO, groupGoalStatus: 'met' }).metaGrupo, 'Meta del grupo: cumplida');
+  const cumplida = vistaDe({ ...DTO, groupGoalStatus: 'met', metaLocal: { cumplidaPct: 100, faltantePct: 0, cumplida: true } }).metaLocal;
+  assert.equal(cumplida.texto, 'Meta cumplida · 0 % faltante');
+  assert.equal(cumplida.cumplidaPct, 100);
+});
+
+// the local goal: percentages only, integers, never "100 %" unless met, hidden without a goal, money refused
+test('meta local: 99 is shown as 99 when not met; the bar never reaches 100 unless met', () => {
+  const m = vistaDe({ ...DTO, metaLocal: { cumplidaPct: 99, faltantePct: 1, cumplida: false } }).metaLocal;
+  assert.equal(m.texto, 'Meta del local: 99 % cumplida · 1 % faltante');
+  assert.equal(m.cumplidaPct, 99);
+});
+
+test('meta local: start of month (0 %) shows 0 % cumplida · 100 % faltante', () => {
+  const m = vistaDe({ ...DTO, metaLocal: { cumplidaPct: 0, faltantePct: 100, cumplida: false } }).metaLocal;
+  assert.equal(m.texto, 'Meta del local: 0 % cumplida · 100 % faltante');
+});
+
+test('meta local: BOTH null and undefined hide the block (the deploy order cannot break the screen)', () => {
+  const sinKey = { ...DTO }; delete sinKey.metaLocal;
+  for (const dto of [{ ...DTO, metaLocal: null }, sinKey]) {
+    assert.equal(vistaDe(dto).metaLocal, null, 'no block in the view model');
+    assert.equal(/Meta del local|Meta cumplida/.test(textosDeLaVista(vistaDe(dto)).join(' | ')), false, 'no goal text on screen');
+  }
+  assert.equal(esDtoValido({ ...DTO, metaLocal: null }), true, 'null is a valid answer');
+  assert.equal(esDtoValido(sinKey), true, 'an answer from an API without the key is valid (no block, nothing granted)');
+  const src = fs.readFileSync(new URL('../src/components/MiEvaluacion.js', import.meta.url), 'utf8');
+  assert.match(src, /\{v\.metaLocal \? \(/, 'the screen draws the block only when the view model has one');
+  assert.equal(esDtoValido({ ...DTO, metaLocal: { cumplidaPct: 1, faltantePct: 99, cumplida: false, monto: 4200000 } }), false, 'a money key is refused');
+  assert.equal(esDtoValido({ ...DTO, metaLocal: { cumplidaPct: 1, faltantePct: 99 } }), false, 'a missing key is refused');
+});
+
+test('meta local: no amount or goal value in any text of the view', () => {
+  const textos = textosDeLaVista(vistaDe(DTO)).join(' | ');
+  assert.equal(/\$|CLP|pesos|\d{6,}/i.test(textos), false, 'money or a goal value');
 });
 
 test('components and trend labels', () => {
