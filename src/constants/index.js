@@ -8,7 +8,7 @@ export const COLORS = {
   border2: '#3d3325',
   text:    '#f0ebe0',
   text2:   '#9c8f78',
-  text3:   '#5c5040',
+  text3:   '#8a7e6a',
   gold:    '#c9a84c',
   gold2:   '#e8c97a',
   gold3:   '#7a5f20',
