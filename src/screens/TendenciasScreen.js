@@ -111,7 +111,7 @@ export default function TendenciasScreen({ barbero }) {
 
       {/* ── GRÁFICO POR HORA ───────────────────────────────── */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>⏰ INGRESOS POR HORA</Text>
+        <Text style={s.cardTitle}>⏰ GANANCIAS POR HORA</Text>
         <Text style={s.cardSub}>Identifica tus horas punta y valle</Text>
 
         <View style={s.chartWrap}>

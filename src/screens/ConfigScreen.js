@@ -102,12 +102,11 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
       porPago[r.pago].gan += (r.bb || 0) + (r.propina || 0);
     });
 
-    // Por servicio
+    // Por servicio (count only: no billed sum is kept)
     const porSvc = {};
     regs.forEach(r => {
-      if (!porSvc[r.snom]) porSvc[r.snom] = { n: 0, fact: 0 };
+      if (!porSvc[r.snom]) porSvc[r.snom] = { n: 0 };
       porSvc[r.snom].n++;
-      porSvc[r.snom].fact += r.precio || 0;
     });
     const topSvc = Object.entries(porSvc)
       .sort((a, b) => b[1].n - a[1].n).slice(0, 8);
@@ -121,7 +120,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
     const horaMax = Object.entries(porHora)
       .sort((a, b) => b[1] - a[1])[0];
 
-    return { n, fact, bb, prop, tk, porPago, topSvc, horaMax };
+    return { n, bb, prop, tk, porPago, topSvc, horaMax };
   };
 
   const testPush = async () => {
@@ -239,7 +238,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
               </View>
               <View style={[s.statCard, s.statGreen]}>
                 <Text style={[s.statVal, { color: COLORS.ok }]}>${fmt(datos.bb)}</Text>
-                <Text style={s.statLbl}>Ingresos</Text>
+                <Text style={s.statLbl}>Ganancias</Text>
               </View>
               <View style={[s.statCard, s.statGold]}>
                 <Text style={[s.statVal, { color: COLORS.gold }]}>${fmt(datos.tk)}</Text>

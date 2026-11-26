@@ -74,12 +74,20 @@ test('bonus sentence: S and A keep the current text', () => {
   }
 });
 
-test('bonus sentence: the panel carries the same owner-approved text (same copy, both places)', () => {
-  const panel = fs.readFileSync(new URL('../../control-copia/evaluacion-individual.js', import.meta.url), 'utf8');
+// The panel's copy of the same text lives in another repository. The check runs only when the file is named explicitly
+// (PANEL_EVAL_FILE=<path to barberpilot-control evaluacion-individual.js>); otherwise it is skipped with a message.
+test('bonus sentence: the panel carries the same owner-approved text (same copy, both places)', (t) => {
+  const panelPath = process.env.PANEL_EVAL_FILE;
+  if (!panelPath || !fs.existsSync(panelPath)) {
+    t.skip('set PANEL_EVAL_FILE to the panel evaluacion-individual.js to run this cross-repo check');
+    return;
+  }
+  const panel = fs.readFileSync(panelPath, 'utf8');
   assert.match(panel, /Este estrato no genera bono\. Los estratos S y A sí, si se cumple la meta del grupo\./);
   assert.match(panel, /Marca: avance del mes /);
   assert.match(panel, /Proyección para fin de mes: /);
-}, { skip: !fs.existsSync(new URL('../../control-copia/evaluacion-individual.js', import.meta.url)) });
+  assert.equal(/Ritmo esperado a hoy/.test(panel), false, 'the removed wording is gone from the panel');
+});
 
 test('texts: the caption and note are the owner-approved strings', () => {
   assert.equal(TEXTOS.bonoSinBono, 'Este estrato no genera bono. Los estratos S y A sí, si se cumple la meta del grupo.');
