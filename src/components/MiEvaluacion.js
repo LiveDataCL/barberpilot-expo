@@ -2,6 +2,7 @@
 // Data: GET /api/v2/me/evaluation (the session decides whose data; the API ignores any barber or month parameter). No month selector.
 // States: loading; ok (with "Actualizado: hh:mm"); offline (last good answer with "sin conexión — datos de hh:mm"); no evaluation; error.
 // Pull to refresh. The last good answer is cached on the device (src/services/evaluacionCache.js).
+// Type: Montserrat (loaded by App.js) at 400/500/700. Minimum sizes: 13 for secondary text, 15 for body, 14 for status lines.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import { COLORS } from '../constants';
@@ -10,6 +11,9 @@ import { TEXTOS, resolverEstado, vistaDe, mesDe } from '../services/evaluacion';
 import { leerCache, guardarCache, borrarCache } from '../services/evaluacionCache';
 
 const TIMEOUT_MS = 10000;
+const REG = 'Montserrat_400Regular';
+const MED = 'Montserrat_500Medium';
+const BOLD = 'Montserrat_700Bold';
 
 export default function MiEvaluacion({ barbero }) {
   const [estado, setEstado] = useState(null);
@@ -60,6 +64,7 @@ export default function MiEvaluacion({ barbero }) {
   }
 
   const v = vistaDe(estado.dto);
+  const ritmo = v.metaLocal ? v.metaLocal.ritmo : null;   // null or undefined from an old server: no marker, no caption
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.contenido} refreshControl={refresh}>
       {estado.tipo === 'sin_conexion' ? (
@@ -82,10 +87,22 @@ export default function MiEvaluacion({ barbero }) {
       {v.metaLocal ? (
         <View style={s.metaLocal}>
           <Text style={s.metaLocalTxt}>{v.metaLocal.texto}</Text>
-          <View style={s.barra} accessibilityRole="progressbar" accessibilityLabel={v.metaLocal.texto}
-            accessibilityValue={{ min: 0, max: 100, now: v.metaLocal.cumplidaPct }}>
-            <View style={[s.barraRelleno, { width: v.metaLocal.cumplidaPct + '%' }, v.metaLocal.cumplida && s.barraOk]} />
+          <View style={s.barraWrap}>
+            <View style={s.barra} accessibilityRole="progressbar" accessibilityLabel={v.metaLocal.texto}
+              accessibilityValue={{ min: 0, max: 100, now: v.metaLocal.cumplidaPct }}>
+              <View style={[s.barraRelleno, { width: v.metaLocal.cumplidaPct + '%' }, v.metaLocal.cumplida && s.barraOk]} />
+            </View>
+            {ritmo ? (
+              // the expected-pace tick: light, 3 px wide, taller than the bar; its meaning is also written in the caption below
+              <View style={[s.ritmoMarca, { left: ritmo.pct + '%' }]} importantForAccessibility="no" />
+            ) : null}
           </View>
+          {ritmo ? (
+            <View style={s.ritmoBloque}>
+              <Text style={s.ritmoTxt}>{ritmo.texto}</Text>
+              <Text style={s.ritmoNota}>{ritmo.nota}</Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -140,38 +157,43 @@ const s = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: COLORS.bg },
   contenido: { padding: 16, paddingBottom: 32 },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  actualizado: { fontSize: 13, color: COLORS.text2, marginBottom: 8 },
+  actualizado: { fontSize: 13, fontFamily: REG, color: COLORS.text2, marginBottom: 8 },
   sinConexion: { backgroundColor: '#3a2f10', borderColor: COLORS.gold3, borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 10 },
-  sinConexionTxt: { color: COLORS.gold2, fontSize: 14, fontWeight: '600' },
+  sinConexionTxt: { color: COLORS.gold2, fontSize: 14, fontFamily: BOLD },
   aviso: { backgroundColor: COLORS.s1, borderColor: COLORS.border, borderWidth: 1, borderRadius: 10, padding: 18, marginTop: 8 },
-  avisoTxt: { color: COLORS.text, fontSize: 16 },
+  avisoTxt: { color: COLORS.text, fontSize: 16, fontFamily: REG },
   fila: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  provisional: { fontSize: 13, color: COLORS.gold2, backgroundColor: COLORS.s2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, overflow: 'hidden' },
+  provisional: { fontSize: 13, fontFamily: MED, color: COLORS.gold2, backgroundColor: COLORS.s2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, overflow: 'hidden' },
   puntajeBloque: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  puntaje: { fontSize: 40, fontWeight: '800', color: COLORS.gold2 },
-  puntajeMax: { fontSize: 16, fontWeight: '600', color: COLORS.text2 },
+  puntaje: { fontSize: 40, fontFamily: BOLD, color: COLORS.gold2 },
+  puntajeMax: { fontSize: 16, fontFamily: MED, color: COLORS.text2 },
   tier: { backgroundColor: COLORS.s2, borderColor: COLORS.border2, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 6 },
-  tierTxt: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-  bono: { fontSize: 15, color: COLORS.text },
-  bonoNota: { fontSize: 13, color: COLORS.text2, marginBottom: 6 },
-  meta: { fontSize: 14, color: COLORS.text2, marginBottom: 12 },
+  tierTxt: { fontSize: 18, fontFamily: BOLD, color: COLORS.text },
+  bono: { fontSize: 15, fontFamily: MED, color: COLORS.text },
+  bonoNota: { fontSize: 13, fontFamily: REG, color: COLORS.text2, marginBottom: 6 },
   metaLocal: { marginBottom: 12 },
-  metaLocalTxt: { fontSize: 15, color: COLORS.text, marginBottom: 6 },
-  barra: { height: 10, borderRadius: 999, backgroundColor: COLORS.s2, borderColor: COLORS.border, borderWidth: 1, overflow: 'hidden' },
+  metaLocalTxt: { fontSize: 15, fontFamily: MED, color: COLORS.text, marginBottom: 6 },
+  barraWrap: { position: 'relative' },
+  barra: { height: 10, borderRadius: 999, backgroundColor: COLORS.s2, borderColor: COLORS.border2, borderWidth: 1, overflow: 'hidden' },
   barraRelleno: { height: '100%', backgroundColor: COLORS.gold },
   barraOk: { backgroundColor: COLORS.ok },
+  // the tick sits outside the bar's clipping box, so it can rise above and below the bar
+  ritmoMarca: { position: 'absolute', top: -4, bottom: -4, width: 3, marginLeft: -1.5, backgroundColor: COLORS.text, borderRadius: 2 },
+  ritmoBloque: { marginTop: 8 },
+  ritmoTxt: { fontSize: 13, fontFamily: MED, color: COLORS.text },
+  ritmoNota: { fontSize: 13, fontFamily: REG, color: COLORS.text2, marginTop: 2 },
   disq: { backgroundColor: '#3a1414', borderColor: '#7a2a2a', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
-  disqTxt: { color: '#f5b5b5', fontWeight: '700' },
+  disqTxt: { color: '#f5b5b5', fontSize: 14, fontFamily: BOLD },
   proyeccion: { backgroundColor: COLORS.s1, borderColor: COLORS.border2, borderWidth: 1, borderStyle: 'dashed', borderRadius: 10, padding: 12, marginBottom: 12 },
-  proyeccionTxt: { color: COLORS.text, fontSize: 15 },
-  proyeccionBase: { color: COLORS.text2, fontSize: 13, marginTop: 4 },
+  proyeccionTxt: { color: COLORS.text, fontSize: 15, fontFamily: REG },
+  proyeccionBase: { color: COLORS.text2, fontSize: 13, fontFamily: REG, marginTop: 4 },
   bloque: { backgroundColor: COLORS.s1, borderColor: COLORS.border, borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 12 },
-  seccion: { fontSize: 12, fontWeight: '700', color: COLORS.text2, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
+  seccion: { fontSize: 13, fontFamily: BOLD, color: COLORS.text2, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
   filaPunto: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 8, borderBottomColor: COLORS.border, borderBottomWidth: StyleSheet.hairlineWidth },
-  punto: { fontSize: 15, color: COLORS.text },
-  detalle: { fontSize: 12, color: COLORS.text2, marginTop: 2 },
-  puntoNum: { fontSize: 15, color: COLORS.text, fontVariant: ['tabular-nums'], minWidth: 64, textAlign: 'right' },
-  tend: { fontSize: 13, minWidth: 96, textAlign: 'right' },
+  punto: { fontSize: 15, fontFamily: REG, color: COLORS.text },
+  detalle: { fontSize: 13, fontFamily: REG, color: COLORS.text2, marginTop: 2 },
+  puntoNum: { fontSize: 15, fontFamily: MED, color: COLORS.text, fontVariant: ['tabular-nums'], minWidth: 64, textAlign: 'right' },
+  tend: { fontSize: 13, fontFamily: MED, minWidth: 96, textAlign: 'right' },
   tend_up: { color: COLORS.ok }, tend_down: { color: COLORS.red }, tend_flat: { color: COLORS.text2 }, tend_insufficient: { color: COLORS.text3 },
-  mejora: { fontSize: 14, color: COLORS.text, marginBottom: 6 },
+  mejora: { fontSize: 15, fontFamily: REG, color: COLORS.text, marginBottom: 6 },
 });

@@ -61,7 +61,7 @@ const TABS_BARBERO = [
   { id: 'mes',        label: 'Mi Mes',    icon: 'bar-chart-2' },
   { id: 'tendencias', label: 'Tendenc.',  icon: 'trending-up' },
   { id: 'cobrar',     label: 'Cobrar',    icon: 'dollar-sign' },
-  { id: 'config',     label: 'Config',    icon: 'settings'    },
+  { id: 'config',     label: 'Mi perfil', icon: 'user'        },
 ];
 
 async function registrarPushToken(bid) {
@@ -498,10 +498,12 @@ export default function App() {
               const color = active ? usuario.color : COLORS.text3;
               return (
                 <TouchableOpacity key={t.id} style={s.navBtn}
-                  onPress={() => setTab(t.id)} activeOpacity={0.7}>
+                  onPress={() => setTab(t.id)} activeOpacity={0.7}
+                  accessibilityRole="tab" accessibilityLabel={t.label}
+                  accessibilityState={{ selected: active }}>
                   {active && <View style={[s.navBar, { backgroundColor: usuario.color }]} />}
                   <Feather name={t.icon} size={20} color={color} />
-                  <Text style={[s.navLabel, active && { color: usuario.color }]}>
+                  <Text style={[s.navLabel, active && { color: usuario.color }]} numberOfLines={1}>
                     {t.label}
                   </Text>
                 </TouchableOpacity>
@@ -532,12 +534,12 @@ const s = StyleSheet.create({
   logoutTxt:{ fontSize: 18, color: COLORS.text3 },
   nav:      { backgroundColor: '#0a0806', borderTopWidth: 1,
     borderTopColor: 'rgba(201,168,76,.12)', flexDirection: 'row' },
-  navBtn:   { flex: 1, alignItems: 'center', paddingTop: 10, paddingBottom: 6,
+  navBtn:   { flex: 1, alignItems: 'center', paddingTop: 10, paddingBottom: 6, paddingHorizontal: 2,
     position: 'relative' },
   navBar:   { position: 'absolute', top: 0, left: '25%', right: '25%',
     height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
-  navLabel: { fontSize: 10, color: COLORS.text3, marginTop: 4,
-    letterSpacing: 0.8, textTransform: 'uppercase', fontFamily: 'Montserrat_500Medium' },
+  // no uppercase, no wide spacing; 12 sp is the smallest text in the App; no fixed height (the label may need the room for font scale)
+  navLabel: { fontSize: 12, color: COLORS.text3, marginTop: 4, fontFamily: 'Montserrat_500Medium' },
   stagingBanner:    { backgroundColor: '#7c3aed', paddingVertical: 3, alignItems: 'center' },
   stagingBannerTxt: { color: '#fff', fontSize: 10, fontFamily: 'Montserrat_700Bold',
     letterSpacing: 1.5, textTransform: 'uppercase' },

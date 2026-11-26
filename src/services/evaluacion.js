@@ -14,6 +14,11 @@ export const TEXTOS = Object.freeze({
   sesion: 'Tu sesión expiró. Vuelve a ingresar.',
   descalificado: 'Descalificado este mes',
   bono: 'Se paga solo si la meta del grupo se cumple.',
+  // tiers B, C, D and X: no bonus (owner-approved text; the same in the panel)
+  bonoSinBono: 'Este estrato no genera bono. Los estratos S y A sí, si se cumple la meta del grupo.',
+  // the expected pace, as a marker on the goal bar (based on elapsed working days)
+  ritmo: (pct) => `Ritmo esperado a hoy: ${pct} %`,
+  ritmoNota: 'Según los días de trabajo transcurridos del mes.',
   // the local's billing goal, percentages only (owner decision); the same copy as the panel
   metaLocal: (cumplida, faltante) => `Meta del local: ${cumplida} % cumplida · ${faltante} % faltante`,
   metaLocalCumplida: (faltante) => `Meta cumplida · ${faltante} % faltante`,
@@ -45,17 +50,17 @@ export const FORMA_DTO = Object.freeze({
   },
   conductRows: [{ label: true, monthlyAvg: true, trend: true }],
   carryOverDays: true, bonusTier: true, bonusPct: true, groupGoalStatus: true,
-  metaLocal: { cumplidaPct: true, faltantePct: true, cumplida: true },   // null when no goal is configured
+  metaLocal: { cumplidaPct: true, faltantePct: true, cumplida: true, ritmoEsperadoPct: true },   // null when no goal; ritmoEsperadoPct may be null or absent
   isProvisional: true, computedAt: true,
   improvementHints: [{ component: true, text: true }],
   productionProjection: { projectedPoints: true, max: true, basisDays: true, isEstimate: true },
 });
 
 // The only keys that may be null: the estimate, and the local goal when no goal is configured. Anything else null is refused.
-const ANULABLES = ['.productionProjection', '.metaLocal'];
+const ANULABLES = ['.productionProjection', '.metaLocal', '.metaLocal.ritmoEsperadoPct'];
 // The keys that may be ABSENT: an answer from an API that does not send the local goal yet (deploy order) shows no block, instead of being refused.
 // Absent means "no block"; it never grants access to anything, so the rest of the allowlist stays strict.
-const OPCIONALES = ['.metaLocal'];
+const OPCIONALES = ['.metaLocal', '.metaLocal.ritmoEsperadoPct'];
 
 // Every key present and no extra key, at every level. Returns the list of problems (empty = valid).
 export function problemasDeForma(obj, forma, ruta = '') {
@@ -126,6 +131,8 @@ export function resolverEstado({ status = null, cuerpo = null, redErr = false, c
 
 // The lines the screen draws, as plain data. Every value comes from the barber's own DTO. Nothing here is a peso amount,
 // a group-goal amount, a month selector or another barber's data.
+const SIN_BONO = ['B', 'C', 'D', 'X'];
+
 export function vistaDe(dto) {
   const c = dto.components;
   const maximoTotal = c.production.max + c.conduct.max + c.punctuality.max + c.upselling.max + c.tips.max;
@@ -150,14 +157,18 @@ export function vistaDe(dto) {
     tier: dto.tierNombre ? dto.tier + ' · ' + dto.tierNombre : dto.tier,
     descalificado: dto.disqualified && dto.disqualified.active ? TEXTOS.descalificado : null,
     tierBono: tierTxt,
-    bonoNota: TEXTOS.bono,
+    // tiers without a bonus (B, C, D, X) get the owner-approved sentence; S and A keep the current one
+    bonoNota: SIN_BONO.includes(String(dto.bonusTier).toUpperCase()) ? TEXTOS.bonoSinBono : TEXTOS.bono,
     // percentages only: integers, floored in the API; clamped again here so a bar never leaves 0..100. Null → no block.
     metaLocal: dto.metaLocal ? (() => {
       const cum = Math.max(0, Math.min(100, Math.floor(Number(dto.metaLocal.cumplidaPct)) || 0));
       const fal = Math.max(0, Math.min(100, Math.floor(Number(dto.metaLocal.faltantePct)) || 0));
       const cumplida = dto.metaLocal.cumplida === true;
+      // the expected pace: an integer 0..100, or nothing (null/undefined from an old server → no marker, no caption)
+      const rp = dto.metaLocal.ritmoEsperadoPct;
+      const ritmo = Number.isInteger(rp) && rp >= 0 && rp <= 100 ? { pct: rp, texto: TEXTOS.ritmo(rp), nota: TEXTOS.ritmoNota } : null;
       return { cumplida, cumplidaPct: cumplida ? 100 : cum, faltantePct: cumplida ? 0 : fal,
-        texto: cumplida ? TEXTOS.metaLocalCumplida(0) : TEXTOS.metaLocal(cum, fal) };
+        texto: cumplida ? TEXTOS.metaLocalCumplida(0) : TEXTOS.metaLocal(cum, fal), ritmo };
     })() : null,
     proyeccion: dto.productionProjection
       ? { texto: TEXTOS.proyeccion(coma(dto.productionProjection.projectedPoints), dto.productionProjection.max), base: TEXTOS.proyeccionBase(dto.productionProjection.basisDays) }
@@ -172,7 +183,7 @@ export function vistaDe(dto) {
 
 // Every text of the view, flattened: used by the tests to check the copy and the absence of money and other barbers.
 export function textosDeLaVista(v) {
-  return [v.titulo, v.puntajeTxt, v.maximoTxt, v.tier, v.descalificado, v.tierBono, v.bonoNota, v.metaLocal && v.metaLocal.texto, v.provisional, v.copiados,
+  return [v.titulo, v.puntajeTxt, v.maximoTxt, v.tier, v.descalificado, v.tierBono, v.bonoNota, v.metaLocal && v.metaLocal.texto, ...(v.metaLocal && v.metaLocal.ritmo ? [v.metaLocal.ritmo.texto, v.metaLocal.ritmo.nota] : []), v.provisional, v.copiados,
     ...(v.proyeccion ? [v.proyeccion.texto, v.proyeccion.base] : []),
     ...v.puntos.flatMap(p => [p.nombre, p.puntos, p.detalle]),
     ...v.conducta.flatMap(r => [r.etiqueta, r.promedio, r.tendencia]),
