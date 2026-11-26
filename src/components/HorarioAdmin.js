@@ -1,38 +1,36 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { COLORS } from '../constants';
 import { fetchAutenticado } from '../services/api';
+import { RE_HHMM, cuerpoMarcar, jornadaTexto, notaDe } from '../services/horario';
 
-// Horario (admin): arrival and departure of today for each barber. The SAME store as the panel's Horarios tab (horarios):
-// a departure removes the barber from today's rotation and from the TV, exactly as it does from the panel.
-// The server decides every rule (one mark per day, order, reason, audit); this screen shows the state and sends the request.
+// Horario (admin). Mirrors the panel's Horarios tab (barberpilot-control, index.html: registrarHora, renderHorarios,
+// _horCampoHtml, cargarHorariosDesdeRailway). Same routes, same payloads, same rules: the server decides every rule and
+// this screen only shows the state and sends the request.
+//   read:  GET  /api/v2/asistencia/hoy
+//   write: POST /api/v2/asistencia/marcar  (body built by cuerpoMarcar, the same as the panel)
 
-const minutos = (hhmm) => {
-  if (!hhmm) return null;
-  const [h, m] = String(hhmm).split(':').map(Number);
-  return h * 60 + m;
-};
-const durTexto = (min) => (min == null || min < 0 ? '—' : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`);
-const estadoDe = (r) => (!r.entrada ? 'Aún no llega' : (!r.salida ? 'En el local' : 'Ya se fue'));
-const colorDe = (r) => (!r.entrada ? COLORS.text3 : (!r.salida ? COLORS.ok : COLORS.text2));
-
-export default function HorarioAdmin({ enServicio, onCambio }) {
-  const [data, setData] = useState(null);
-  const [err, setErr] = useState(null);
-  const [menuBid, setMenuBid] = useState(null);
-  const [dlg, setDlg] = useState(null);   // { tipo: 'llegada'|'salida'|'corregir'|'anular', b, campo?, hora?, motivo?, confirmado? }
-  const [busy, setBusy] = useState(false);
-  const [dlgMsg, setDlgMsg] = useState(null);
+export default function HorarioAdmin({ registrosHoy }) {
+  const [data, setData] = useState(null);           // last GET /api/v2/asistencia/hoy
+  const [err, setErr] = useState('');
+  const [guardando, setGuardando] = useState(false); // the panel disables every field while a mark is being saved
+  const [aviso, setAviso] = useState('');            // the result line (the panel's toast)
+  const [avisoError, setAvisoError] = useState(false);
+  const [horas, setHoras] = useState({});            // { [bid]: { entrada?, salida? } } typed times; undefined = show the server value
+  const [motivos, setMotivos] = useState({});        // { [bid]: { entrada?, salida? } }
+  const [motivoErr, setMotivoErr] = useState(null);  // { bid, tipo } when the server asks for a reason
   const [dispositivos, setDispositivos] = useState([]);
+
+  const cargado = !!data && !err;
 
   const cargar = useCallback(async () => {
     try {
       const r = await fetchAutenticado('/api/v2/asistencia/hoy');
       const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.error || 'HTTP ' + r.status);
-      setData(j); setErr(null);
+      if (!r.ok || !j.ok) throw new Error(j.detalle || j.error || 'HTTP ' + r.status);
+      setData(j); setErr('');
     } catch (e) {
-      setErr(e.message || 'Sin conexión');
+      setErr('No se pudieron leer los horarios del servidor (' + (e.message || 'sin conexión') + ').');
     }
   }, []);
 
@@ -44,68 +42,46 @@ export default function HorarioAdmin({ enServicio, onCambio }) {
     } catch { /* offline: keep the last list */ }
   }, []);
 
-  useEffect(() => {
-    cargar(); cargarDispositivos();
-    const t = setInterval(cargar, 30000);
-    return () => clearInterval(t);
-  }, [cargar, cargarDispositivos]);
+  // Loaded when the tab opens (the panel loads on tab open too); no timer, as in the panel.
+  useEffect(() => { cargar(); cargarDispositivos(); }, [cargar, cargarDispositivos]);
 
-  const domingo = !!data && new Date(data.fecha + 'T12:00:00').getDay() === 0;
+  const valorCampo = (bid, tipo, servidor) => (horas[bid] && horas[bid][tipo] !== undefined ? horas[bid][tipo] : servidor);
 
-  // One request for every change: the server answers with the new state, or with the reason in Spanish.
-  const enviar = async (cuerpo) => {
-    setBusy(true); setDlgMsg(null);
+  // registrarHora() of the panel: body {bid, tipo}; hora only when given; motivo only together with an hora.
+  const registrar = async (bid, tipo, hora) => {
+    if (guardando || !cargado) return;
+    const body = cuerpoMarcar(bid, tipo, hora, motivos[bid] && motivos[bid][tipo]);
+    setGuardando(true); setAviso(''); setMotivoErr(null);
     try {
       const r = await fetchAutenticado('/api/v2/asistencia/marcar', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.ok) { setDlgMsg(j.detalle || j.error || ('No se guardó (código ' + r.status + ').')); return false; }
-      setDlg(null); setMenuBid(null);
-      cargar();
-      if (onCambio) onCambio();
-      return true;
+      setGuardando(false);
+      if (!j.ok) {
+        setAvisoError(true);
+        setAviso('⚠ ' + (j.detalle || j.error || 'No se guardó la hora.') + ' No se cambió nada.');
+        if (j.error === 'motivo_requerido') setMotivoErr({ bid, tipo });
+        return;
+      }
+      setAvisoError(false);
+      setAviso(j.sin_cambio ? 'Sin cambios: ya estaba ' + j.valor : '✅ ' + (tipo === 'entrada' ? 'Entrada' : 'Salida') + ' guardada: ' + j.valor);
+      setHoras(prev => ({ ...prev, [bid]: { ...(prev[bid] || {}), [tipo]: undefined } }));
+      setMotivos(prev => ({ ...prev, [bid]: { ...(prev[bid] || {}), [tipo]: undefined } }));
+      cargar();   // the panel re-reads the day after a saved mark
     } catch {
-      setDlgMsg('Sin conexión: no se guardó nada. Intenta de nuevo.');
-      return false;
-    } finally {
-      setBusy(false);
+      setGuardando(false); setAvisoError(true);
+      setAviso('⚠ Sin conexión: la hora NO se guardó. Inténtalo de nuevo.');
     }
   };
 
-  const confirmarDlg = () => {
-    if (!dlg) return;
-    const { tipo, b } = dlg;
-    if (tipo === 'llegada') return enviar({ bid: b.bid, tipo: 'entrada' });
-    if (tipo === 'salida') {
-      if (enServicio && enServicio[b.bid] && !dlg.confirmado) { setDlgMsg('Confirma que quieres registrar la salida con un servicio en curso.'); return; }
-      return enviar({ bid: b.bid, tipo: 'salida' });
-    }
-    if (tipo === 'corregir') {
-      const motivo = (dlg.motivo || '').trim();
-      if (motivo.length < 5 || motivo.length > 120) { setDlgMsg('El motivo es obligatorio: de 5 a 120 caracteres.'); return; }
-      return enviar({ bid: b.bid, tipo: dlg.campo, hora: dlg.hora, motivo });
-    }
-    if (tipo === 'anular') {
-      const motivo = (dlg.motivo || '').trim();
-      if (motivo.length < 5 || motivo.length > 120) { setDlgMsg('El motivo es obligatorio: de 5 a 120 caracteres.'); return; }
-      return enviar({ bid: b.bid, tipo: dlg.campo, accion: 'anular', motivo });
-    }
-  };
+  const marcarAhora = (bid, tipo) => registrar(bid, tipo, '');
 
-  const restablecerPin = (b) => {
-    Alert.alert('Restablecer PIN', `¿Borrar el PIN de ${b.nombre}? Tendrá que crear uno nuevo en su próximo ingreso y sus sesiones se cierran. Queda registrado con tu nombre.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Restablecer', style: 'destructive', onPress: async () => {
-          try {
-            const r = await fetchAutenticado('/api/v2/staff/' + encodeURIComponent(b.bid) + '/reset-pin', { method: 'POST' });
-            const j = await r.json().catch(() => ({}));
-            if (!r.ok || !j.ok) Alert.alert('No se restableció', j.detalle || j.error || ('Código ' + r.status));
-            else Alert.alert('PIN restablecido', b.nombre + ' creará un PIN nuevo en su próximo ingreso.');
-          } catch { Alert.alert('Sin conexión', 'No se restableció el PIN. Intenta de nuevo.'); }
-          setMenuBid(null);
-        } },
-    ]);
+  // guardarHoraDeCampo() of the panel: the typed time must be HH:MM.
+  const guardarCampo = (bid, tipo, servidor) => {
+    const v = valorCampo(bid, tipo, servidor || '');
+    if (!RE_HHMM.test(v)) { setAvisoError(true); setAviso('Escribe la hora (HH:MM) antes de guardar.'); return; }
+    registrar(bid, tipo, v);
   };
 
   const revocarDispositivo = (d) => {
@@ -121,70 +97,113 @@ export default function HorarioAdmin({ enServicio, onCambio }) {
     ]);
   };
 
-  const rows = data ? data.barberos : [];
-  const ahoraMin = data ? minutos(data.ahora) : null;
+  const barberos = data ? data.barberos : [];
+  const umbral = data ? data.motivo_obligatorio_min : null;
+
+  const campo = (b, tipo, servidor, meta) => {
+    const etiqueta = tipo === 'entrada' ? 'Entrada' : 'Salida';
+    const tiene = !!servidor;
+    const valor = valorCampo(b.bid, tipo, servidor || '');
+    const nota = notaDe(meta);
+    const conMotivoErr = motivoErr && motivoErr.bid === b.bid && motivoErr.tipo === tipo;
+    return (
+      <View style={{ flex: 1 }}>
+        <Text style={s.etiqueta}>{etiqueta}</Text>
+        <TextInput
+          value={valor}
+          onChangeText={(t) => setHoras(prev => ({ ...prev, [b.bid]: { ...(prev[b.bid] || {}), [tipo]: t } }))}
+          editable={cargado && !guardando}
+          placeholder="HH:MM"
+          placeholderTextColor={COLORS.text3}
+          keyboardType="numbers-and-punctuation"
+          maxLength={5}
+          style={[s.input, tiene && { borderColor: tipo === 'entrada' ? COLORS.ok : COLORS.blue }]}
+        />
+        <View style={s.botones}>
+          {!tiene && (
+            <TouchableOpacity style={[s.btnPequeno, (!cargado || guardando) && s.deshabilitado]} disabled={!cargado || guardando} onPress={() => marcarAhora(b.bid, tipo)}>
+              <Text style={s.btnPequenoTxt}>Marcar ahora</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={[s.btnPequeno, { backgroundColor: tiene ? (tipo === 'entrada' ? COLORS.ok : COLORS.blue) : COLORS.text2 }, (!cargado || guardando) && s.deshabilitado]}
+            disabled={!cargado || guardando} onPress={() => guardarCampo(b.bid, tipo, servidor)}>
+            <Text style={s.btnPequenoTxt}>{tiene ? 'Corregir' : 'Guardar hora'}</Text>
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          value={(motivos[b.bid] && motivos[b.bid][tipo]) || ''}
+          onChangeText={(t) => setMotivos(prev => ({ ...prev, [b.bid]: { ...(prev[b.bid] || {}), [tipo]: t } }))}
+          editable={cargado && !guardando}
+          maxLength={200}
+          placeholder={'Motivo del ajuste' + (umbral != null ? ' (obligatorio si difiere más de ' + umbral + ' min de ahora)' : '')}
+          placeholderTextColor={COLORS.text3}
+          style={[s.inputMotivo, conMotivoErr && { borderColor: COLORS.red }]}
+        />
+        {!!nota && <Text style={s.nota}>{nota}</Text>}
+      </View>
+    );
+  };
 
   return (
     <ScrollView contentContainerStyle={s.content}>
-      <Text style={s.secLbl}>HORARIO DE HOY{data ? ' · ' + data.ahora : ''}</Text>
-      {domingo && <Text style={s.aviso}>Domingo: el local está cerrado. No se registran marcas hoy.</Text>}
-      {err && (
-        <TouchableOpacity onPress={cargar} style={s.card}>
-          <Text style={{ color: COLORS.red }}>No se pudo leer el horario ({err}). Toca para reintentar.</Text>
+      <Text style={s.explica}>
+        Registra la entrada y salida de cada barbero. «Marcar ahora» guarda la hora actual; si lo registras después, escribe la hora y pulsa «Guardar hora». Todo se guarda en el servidor al instante, queda anotado quién lo hizo, y no se aceptan horas futuras ni de otros días. Si la hora que escribes se aleja de ahora más de lo permitido, el sistema pide el motivo.
+      </Text>
+
+      {!!err && (
+        <TouchableOpacity onPress={cargar} style={s.aviso}>
+          <Text style={s.avisoTxt}>{err} Toca para reintentar.</Text>
         </TouchableOpacity>
       )}
+      {!!aviso && <Text style={[s.resultado, { color: avisoError ? COLORS.red : COLORS.ok }]}>{aviso}</Text>}
       {!data && !err && <ActivityIndicator color={COLORS.gold} style={{ marginTop: 20 }} />}
 
-      {rows.map((r) => {
-        const b = { bid: r.bid, nombre: r.nombre };
-        const hayServicio = !!(enServicio && enServicio[r.bid]);
-        const horas = r.entrada ? durTexto(minutos(r.salida || data.ahora) - minutos(r.entrada)) : '—';
-        const abierto = menuBid === r.bid;
+      {barberos.map((b) => {
+        const servicios = (registrosHoy || []).filter(r => r.bid === b.bid).length;
         return (
-          <View key={r.bid} style={[s.card, { marginBottom: 10 }]}>
-            <View style={s.filaTop}>
-              <Text style={s.nombre}>{r.nombre}</Text>
-              <Text style={[s.estado, { color: colorDe(r) }]}>{estadoDe(r)}</Text>
+          <View key={b.bid} style={s.tarjeta}>
+            <View style={s.cabecera}>
+              <Text style={s.cabeceraNom}>{b.nombre}</Text>
+              <Text style={s.cabeceraSvc}>{servicios} servicios hoy</Text>
             </View>
-            <Text style={s.dato}>Llegada: {r.entrada || '—'}{r.entrada_meta ? '  (' + r.entrada_meta.por + ')' : ''}</Text>
-            <Text style={s.dato}>Salida: {r.salida || '—'}{r.salida_meta ? '  (' + r.salida_meta.por + ')' : ''}</Text>
-            <Text style={s.dato}>Horas en el local: {horas}</Text>
-            {hayServicio && r.entrada && !r.salida && <Text style={s.alerta}>Tiene un servicio en curso.</Text>}
-            <View style={s.botones}>
-              {!r.entrada && !domingo && (
-                <TouchableOpacity style={s.btn} onPress={() => setDlg({ tipo: 'llegada', b })}><Text style={s.btnTxt}>Registrar llegada</Text></TouchableOpacity>
-              )}
-              {r.entrada && !r.salida && !domingo && (
-                <TouchableOpacity style={s.btn} onPress={() => setDlg({ tipo: 'salida', b })}><Text style={s.btnTxt}>Registrar salida del turno</Text></TouchableOpacity>
-              )}
-              <TouchableOpacity style={s.btnSec} onPress={() => setMenuBid(abierto ? null : r.bid)}><Text style={s.btnSecTxt}>⋯</Text></TouchableOpacity>
+            <View style={s.cuerpo}>
+              {campo(b, 'entrada', b.entrada, b.entrada_meta)}
+              {campo(b, 'salida', b.salida, b.salida_meta)}
             </View>
-            {abierto && (
-              <View style={s.menu}>
-                {(r.entrada || r.salida) && (
-                  <TouchableOpacity style={s.menuItem} onPress={() => setDlg({ tipo: 'corregir', b, campo: r.salida ? 'salida' : 'entrada', hora: data.ahora, motivo: '' })}>
-                    <Text style={s.menuTxt}>Corregir la hora de la {r.salida ? 'salida' : 'llegada'}</Text>
-                  </TouchableOpacity>
-                )}
-                {(r.entrada || r.salida) && (
-                  <TouchableOpacity style={s.menuItem} onPress={() => setDlg({ tipo: 'anular', b, campo: r.salida ? 'salida' : 'entrada', motivo: '' })}>
-                    <Text style={s.menuTxt}>Anular la última marca ({r.salida ? 'salida' : 'llegada'})</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={s.menuItem} onPress={() => restablecerPin(b)}>
-                  <Text style={s.menuTxt}>Restablecer PIN</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <Text style={s.jornada}>Jornada: <Text style={s.jornadaVal}>{jornadaTexto(b.entrada, b.salida)}</Text></Text>
           </View>
         );
       })}
+
+      {data && (
+        <>
+          <Text style={[s.secLbl, { marginTop: 18 }]}>RESUMEN DEL DÍA · {data.fecha}</Text>
+          <View style={s.tabla}>
+            <View style={[s.fila, s.filaCab]}>
+              <Text style={[s.celda, s.celdaNom, s.cab]}>Barbero</Text>
+              <Text style={[s.celda, s.cab]}>Entrada</Text>
+              <Text style={[s.celda, s.cab]}>Salida</Text>
+              <Text style={[s.celda, s.cab]}>Horas</Text>
+              <Text style={[s.celda, s.cab]}>Serv.</Text>
+            </View>
+            {barberos.map((b) => (
+              <View key={b.bid} style={s.fila}>
+                <Text style={[s.celda, s.celdaNom, { fontWeight: '600' }]}>{b.nombre}</Text>
+                <Text style={[s.celda, { color: b.entrada ? COLORS.ok : COLORS.text3 }]}>{b.entrada || '—'}</Text>
+                <Text style={[s.celda, { color: b.salida ? COLORS.blue : COLORS.text3 }]}>{b.salida || '—'}</Text>
+                <Text style={s.celda}>{jornadaTexto(b.entrada, b.salida)}</Text>
+                <Text style={s.celda}>{(registrosHoy || []).filter(r => r.bid === b.bid).length}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
 
       <Text style={[s.secLbl, { marginTop: 18 }]}>HUELLA DEL ADMINISTRADOR · EQUIPOS</Text>
       {dispositivos.length === 0 ? (
         <Text style={{ color: COLORS.text3, fontSize: 13 }}>Ningún equipo con huella.</Text>
       ) : dispositivos.map((d) => (
-        <View key={d.id} style={[s.card, { marginBottom: 10 }]}>
+        <View key={d.id} style={s.tarjeta}>
           <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '600' }}>{d.device_label || 'Equipo'}</Text>
           <Text style={{ fontSize: 12, color: COLORS.text3, marginTop: 4 }}>
             {d.revoked_at ? 'Revocado' : 'Activo'} · último uso: {d.last_used_at ? new Date(d.last_used_at).toLocaleString('es-CL') : 'nunca'}
@@ -196,73 +215,36 @@ export default function HorarioAdmin({ enServicio, onCambio }) {
           )}
         </View>
       ))}
-
-      <Modal visible={!!dlg} transparent animationType="slide" onRequestClose={() => { if (!busy) setDlg(null); }}>
-        <View style={s.velo}>
-          <View style={s.hoja}>
-            {dlg && dlg.tipo === 'llegada' && (<>
-              <Text style={s.hojaTitulo}>Registrar llegada de {dlg.b.nombre}</Text>
-              <Text style={s.hojaTxt}>Se marca la hora del servidor. Con llegada, {dlg.b.nombre} vuelve a contar como presente en la rotación de hoy.</Text>
-            </>)}
-            {dlg && dlg.tipo === 'salida' && (<>
-              <Text style={s.hojaTitulo}>Registrar salida del turno de {dlg.b.nombre}</Text>
-              <Text style={s.hojaTxt}>Esto quita a {dlg.b.nombre} de la rotación de hoy y del TV: no le llegarán clientes hasta que se anule esta salida.</Text>
-              {enServicio && enServicio[dlg.b.bid] && (
-                <TouchableOpacity onPress={() => setDlg({ ...dlg, confirmado: !dlg.confirmado })} style={s.check}>
-                  <Text style={s.checkTxt}>{dlg.confirmado ? '☑' : '☐'} Tiene un servicio en curso. Confirmo registrar la salida igualmente.</Text>
-                </TouchableOpacity>
-              )}
-            </>)}
-            {dlg && dlg.tipo === 'corregir' && (<>
-              <Text style={s.hojaTitulo}>Corregir la {dlg.campo === 'salida' ? 'salida' : 'llegada'} de {dlg.b.nombre}</Text>
-              <Text style={s.hojaTxt}>Hora (HH:MM, hoy, no futura):</Text>
-              <TextInput value={dlg.hora} onChangeText={(t) => setDlg({ ...dlg, hora: t })} placeholder="HH:MM" placeholderTextColor={COLORS.text3} style={s.input} />
-              <Text style={s.hojaTxt}>Motivo (obligatorio, de 5 a 120 caracteres):</Text>
-              <TextInput value={dlg.motivo} onChangeText={(t) => setDlg({ ...dlg, motivo: t })} maxLength={120} placeholder="Motivo de la corrección" placeholderTextColor={COLORS.text3} style={s.input} />
-            </>)}
-            {dlg && dlg.tipo === 'anular' && (<>
-              <Text style={s.hojaTitulo}>Anular la {dlg.campo === 'salida' ? 'salida' : 'llegada'} de {dlg.b.nombre}</Text>
-              <Text style={s.hojaTxt}>{dlg.campo === 'salida' ? 'Vuelve a contar como presente en la rotación de hoy.' : 'La marca vuelve a estar vacía.'} Motivo obligatorio (de 5 a 120 caracteres):</Text>
-              <TextInput value={dlg.motivo} onChangeText={(t) => setDlg({ ...dlg, motivo: t })} maxLength={120} placeholder="Motivo" placeholderTextColor={COLORS.text3} style={s.input} />
-            </>)}
-            {dlgMsg && <Text style={s.errTxt}>{dlgMsg}</Text>}
-            <TouchableOpacity disabled={busy} onPress={confirmarDlg} style={[s.btn, { marginTop: 14, opacity: busy ? 0.5 : 1 }]}>
-              {busy ? <ActivityIndicator color={COLORS.bg} /> : <Text style={s.btnTxt}>Confirmar</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity disabled={busy} onPress={() => setDlg(null)} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
-              <Text style={{ color: COLORS.text3 }}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
   content: { padding: 18, paddingBottom: 32 },
-  secLbl: { fontSize: 11, color: COLORS.text3, letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 12 },
-  aviso: { fontSize: 13, color: COLORS.text2, marginBottom: 12 },
-  card: { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 16 },
-  filaTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  nombre: { fontSize: 17, color: COLORS.text, fontWeight: '600' },
-  estado: { fontSize: 13, fontWeight: '700' },
-  dato: { fontSize: 13, color: COLORS.text2, marginTop: 2 },
-  alerta: { fontSize: 12, color: COLORS.gold, marginTop: 6 },
-  botones: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10, alignItems: 'center' },
-  btn: { minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, backgroundColor: COLORS.gold, alignItems: 'center' },
-  btnTxt: { fontSize: 14, color: COLORS.bg, fontWeight: '700' },
-  btnSec: { minHeight: 44, minWidth: 44, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
-  btnSecTxt: { fontSize: 18, color: COLORS.text2 },
-  menu: { marginTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 6 },
-  menuItem: { minHeight: 44, justifyContent: 'center' },
-  menuTxt: { fontSize: 14, color: COLORS.text },
-  velo: { flex: 1, backgroundColor: 'rgba(0,0,0,.6)', justifyContent: 'flex-end' },
-  hoja: { backgroundColor: COLORS.s1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32 },
-  hojaTitulo: { fontSize: 17, color: COLORS.text, fontWeight: '700', marginBottom: 8 },
-  hojaTxt: { fontSize: 14, color: COLORS.text2, marginBottom: 8 },
-  input: { minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.s2, color: COLORS.text, paddingHorizontal: 12, fontSize: 16, marginBottom: 8 },
-  check: { minHeight: 44, justifyContent: 'center', marginTop: 6 },
-  checkTxt: { fontSize: 14, color: COLORS.gold },
-  errTxt: { fontSize: 14, color: COLORS.red, marginTop: 10 },
+  secLbl: { fontSize: 11, color: COLORS.text3, letterSpacing: 2.5, marginBottom: 12 },
+  explica: { fontSize: 13, color: COLORS.text2, lineHeight: 20, marginBottom: 14 },
+  aviso: { backgroundColor: COLORS.s2, borderRadius: 12, padding: 12, marginBottom: 10 },
+  avisoTxt: { fontSize: 13, color: COLORS.red },
+  resultado: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  tarjeta: { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12, overflow: 'hidden' },
+  cabecera: { backgroundColor: COLORS.s3, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cabeceraNom: { fontSize: 15, color: COLORS.text, fontWeight: '700' },
+  cabeceraSvc: { fontSize: 11, color: COLORS.text3 },
+  cuerpo: { flexDirection: 'row', gap: 12, padding: 14 },
+  etiqueta: { fontSize: 10, color: COLORS.text3, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  input: { minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.s2, color: COLORS.text, paddingHorizontal: 10, fontSize: 15 },
+  inputMotivo: { minHeight: 40, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.s2, color: COLORS.text, paddingHorizontal: 10, fontSize: 12, marginTop: 6 },
+  botones: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  btnPequeno: { minHeight: 36, paddingHorizontal: 10, justifyContent: 'center', borderRadius: 10, backgroundColor: COLORS.text2 },
+  btnPequenoTxt: { fontSize: 12, color: COLORS.bg, fontWeight: '700' },
+  deshabilitado: { opacity: 0.4 },
+  nota: { fontSize: 11, color: COLORS.text3, marginTop: 4 },
+  jornada: { fontSize: 13, color: COLORS.text2, paddingHorizontal: 14, paddingBottom: 12 },
+  jornadaVal: { color: COLORS.text, fontWeight: '700' },
+  tabla: { backgroundColor: COLORS.s1, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  fila: { flexDirection: 'row', paddingVertical: 9, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: COLORS.border, alignItems: 'center' },
+  filaCab: { borderTopWidth: 0 },
+  celda: { flex: 1, fontSize: 12, color: COLORS.text2, textAlign: 'center' },
+  celdaNom: { flex: 1.4, textAlign: 'left', color: COLORS.text },
+  cab: { fontSize: 10, color: COLORS.text3, textTransform: 'uppercase' },
 });

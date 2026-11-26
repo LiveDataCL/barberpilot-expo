@@ -1003,7 +1003,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
         tab === 'registrar'  ? renderRegistrar()  :
         tab === 'recepcion'  ? renderRecepcion()  :
         tab === 'sillas'     ? renderSillas()     :
-        tab === 'horario'    ? <HorarioAdmin enServicio={enServicio} onCambio={() => cargar(true)} /> :
+        tab === 'horario'    ? <HorarioAdmin registrosHoy={regsHoy} /> :
         null
       )}
 
