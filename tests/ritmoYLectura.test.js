@@ -77,7 +77,8 @@ test('bonus sentence: S and A keep the current text', () => {
 test('bonus sentence: the panel carries the same owner-approved text (same copy, both places)', () => {
   const panel = fs.readFileSync(new URL('../../control-copia/evaluacion-individual.js', import.meta.url), 'utf8');
   assert.match(panel, /Este estrato no genera bono\. Los estratos S y A sí, si se cumple la meta del grupo\./);
-  assert.match(panel, /Ritmo esperado a hoy: /);
+  assert.match(panel, /Marca: avance del mes /);
+  assert.match(panel, /Proyección para fin de mes: /);
 }, { skip: !fs.existsSync(new URL('../../control-copia/evaluacion-individual.js', import.meta.url)) });
 
 test('texts: the caption and note are the owner-approved strings', () => {
