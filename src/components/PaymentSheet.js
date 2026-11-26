@@ -186,11 +186,6 @@ export default function PaymentSheet({ visible, entry, barbero, onClose, onCompl
                   <Text style={s.commLbl}>Barbero (comisión)</Text>
                   <Text style={[s.commVal, { color: COLORS.ok }]}>{bb == null ? 'al guardar' : `$${fmt(bb)}`}</Text>
                 </View>
-                <View style={s.commDivider} />
-                <View style={s.commRow}>
-                  <Text style={s.commLbl}>Negocio</Text>
-                  <Text style={[s.commVal, { color: COLORS.text3 }]}>{neg == null ? 'al guardar' : `$${fmt(neg)}`}</Text>
-                </View>
               </View>
 
               {/* Tip */}

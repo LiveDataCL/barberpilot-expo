@@ -47,6 +47,14 @@ test('Hoy, Mi Mes, Cobrar and Cola: the billed total is never rendered (it feeds
   }
 });
 
+test('the payment sheet (shown only to barber sessions, from Cola) has no "Negocio" shop-share row', () => {
+  const src = leer('src/components/PaymentSheet.js');
+  assert.equal(/Negocio/.test(src), false, 'the shop share is not displayed');
+  assert.match(src, /Barbero \(comisión\)/, 'the barber\'s own commission row stays');
+  const ref = leer('src/screens/ColaScreen.js');
+  assert.match(ref, /<PaymentSheet/, 'the sheet is used from the barber Cola screen');
+});
+
 test('the day notification shows the earnings figure, not the billed day total', () => {
   const src = leer('src/services/DayNotification.js');
   assert.match(src, /Math\.round\(cobra\)/, 'the body uses the earnings argument');
