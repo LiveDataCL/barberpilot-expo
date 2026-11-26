@@ -93,7 +93,8 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
     const prop = regs.reduce((a, r) => a + (r.propina || 0), 0);
     const tk   = n > 0 ? Math.round(fact / n) : 0;
 
-    // Por forma de pago: the barber's earnings per method (bb + propina), never the billed price
+    // Por forma de pago: the barber's EARNINGS per method (bb + propina), the same rule as the Ingresos card above and the Hoy tab.
+    // No billed amount here: the billed price (precio) is not used for this block.
     const porPago = {};
     regs.forEach(r => {
       if (!porPago[r.pago]) porPago[r.pago] = { n: 0, gan: 0 };
@@ -255,6 +256,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
             <View style={s.card}>
               <Text style={s.cardTitle}>POR FORMA DE PAGO</Text>
               {Object.entries(datos.porPago).map(([pago, v]) => {
+                // share of the barber's total earnings (the Ingresos card = the sum of these)
                 const pct = datos.bb > 0 ? Math.round(v.gan / datos.bb * 100) : 0;
                 const color = pago === 'efectivo' ? COLORS.ok
                   : pago === 'debito' ? COLORS.blue : COLORS.gold;
@@ -314,12 +316,6 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
           )}
         </>
       ) : null}
-
-      {/* ── TEST PUSH (temporal) ────────────────────────── */}
-      <TouchableOpacity style={[s.logoutBtn, { marginTop: 10, borderColor: COLORS.gold }]}
-        onPress={testPush}>
-        <Text style={[s.logoutTxt, { color: COLORS.gold }]}>🔔 Probar Push</Text>
-      </TouchableOpacity>
 
       {/* ── CERRAR SESIÓN ───────────────────────────────── */}
       <TouchableOpacity style={s.logoutBtn} onPress={() => Alert.alert(

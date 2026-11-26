@@ -16,9 +16,11 @@ export const TEXTOS = Object.freeze({
   bono: 'Se paga solo si la meta del grupo se cumple.',
   // tiers B, C, D and X: no bonus (owner-approved text; the same in the panel)
   bonoSinBono: 'Este estrato no genera bono. Los estratos S y A sí, si se cumple la meta del grupo.',
-  // the expected pace, as a marker on the goal bar (based on elapsed working days)
-  ritmo: (pct) => `Ritmo esperado a hoy: ${pct} %`,
-  ritmoNota: 'Según los días de trabajo transcurridos del mes.',
+  // the expected pace, as a marker on the goal bar: the caption under the bar
+  marca: (pct) => `Marca: avance del mes ${pct} %`,
+  // the month-end projection (client-side, from the goal's percentage and the pace; an estimate, not the official score)
+  proyeccionFin: (x) => (x >= 100 ? 'Proyección para fin de mes: 100 % o más' : `Proyección para fin de mes: ${x} %`),
+  proyeccionFinNota: 'Si mantienes el ritmo actual. Es una estimación y no cambia el puntaje oficial.',
   // the local's billing goal, percentages only (owner decision); the same copy as the panel
   metaLocal: (cumplida, faltante) => `Meta del local: ${cumplida} % cumplida · ${faltante} % faltante`,
   metaLocalCumplida: (faltante) => `Meta cumplida · ${faltante} % faltante`,
@@ -133,6 +135,17 @@ export function resolverEstado({ status = null, cuerpo = null, redErr = false, c
 // a group-goal amount, a month selector or another barber's data.
 const SIN_BONO = ['B', 'C', 'D', 'X'];
 
+// Projection for the end of the month: X = round(cumplidaPct × 100 / ritmoEsperadoPct), shown capped ("100 % o más").
+// Hidden (null) when: the pace is null or not an integer, the pace is 0 (no division), the elapsed scheduled days are unknown or fewer than 3,
+// or the goal percentage is not a number. Client-side only; no API change; not the official score.
+export function proyeccionFinMes({ cumplidaPct, ritmoEsperadoPct, diasTranscurridos }) {
+  if (!Number.isInteger(ritmoEsperadoPct) || ritmoEsperadoPct <= 0 || ritmoEsperadoPct > 100) return null;
+  if (!Number.isInteger(diasTranscurridos) || diasTranscurridos < 3) return null;
+  if (!Number.isFinite(cumplidaPct) || cumplidaPct < 0) return null;
+  const x = Math.round((cumplidaPct * 100) / ritmoEsperadoPct);
+  return { pct: Math.min(x, 100), texto: TEXTOS.proyeccionFin(x), nota: TEXTOS.proyeccionFinNota };
+}
+
 export function vistaDe(dto) {
   const c = dto.components;
   const maximoTotal = c.production.max + c.conduct.max + c.punctuality.max + c.upselling.max + c.tips.max;
@@ -166,9 +179,13 @@ export function vistaDe(dto) {
       const cumplida = dto.metaLocal.cumplida === true;
       // the expected pace: an integer 0..100, or nothing (null/undefined from an old server → no marker, no caption)
       const rp = dto.metaLocal.ritmoEsperadoPct;
-      const ritmo = Number.isInteger(rp) && rp >= 0 && rp <= 100 ? { pct: rp, texto: TEXTOS.ritmo(rp), nota: TEXTOS.ritmoNota } : null;
-      return { cumplida, cumplidaPct: cumplida ? 100 : cum, faltantePct: cumplida ? 0 : fal,
-        texto: cumplida ? TEXTOS.metaLocalCumplida(0) : TEXTOS.metaLocal(cum, fal), ritmo };
+      const ritmo = Number.isInteger(rp) && rp >= 0 && rp <= 100 ? { pct: rp, texto: TEXTOS.marca(rp) } : null;
+      // elapsed scheduled days: only the estimate carries them (productionProjection.basisDays); without them the projection stays hidden
+      const dias = dto.productionProjection ? dto.productionProjection.basisDays : null;
+      const cumPct = cumplida ? 100 : cum;
+      return { cumplida, cumplidaPct: cumPct, faltantePct: cumplida ? 0 : fal,
+        texto: cumplida ? TEXTOS.metaLocalCumplida(0) : TEXTOS.metaLocal(cum, fal), ritmo,
+        proyeccionFin: proyeccionFinMes({ cumplidaPct: cumPct, ritmoEsperadoPct: rp, diasTranscurridos: dias }) };
     })() : null,
     proyeccion: dto.productionProjection
       ? { texto: TEXTOS.proyeccion(coma(dto.productionProjection.projectedPoints), dto.productionProjection.max), base: TEXTOS.proyeccionBase(dto.productionProjection.basisDays) }
@@ -183,7 +200,7 @@ export function vistaDe(dto) {
 
 // Every text of the view, flattened: used by the tests to check the copy and the absence of money and other barbers.
 export function textosDeLaVista(v) {
-  return [v.titulo, v.puntajeTxt, v.maximoTxt, v.tier, v.descalificado, v.tierBono, v.bonoNota, v.metaLocal && v.metaLocal.texto, ...(v.metaLocal && v.metaLocal.ritmo ? [v.metaLocal.ritmo.texto, v.metaLocal.ritmo.nota] : []), v.provisional, v.copiados,
+  return [v.titulo, v.puntajeTxt, v.maximoTxt, v.tier, v.descalificado, v.tierBono, v.bonoNota, v.metaLocal && v.metaLocal.texto, ...(v.metaLocal && v.metaLocal.ritmo ? [v.metaLocal.ritmo.texto] : []), ...(v.metaLocal && v.metaLocal.proyeccionFin ? [v.metaLocal.proyeccionFin.texto, v.metaLocal.proyeccionFin.nota] : []), v.provisional, v.copiados,
     ...(v.proyeccion ? [v.proyeccion.texto, v.proyeccion.base] : []),
     ...v.puntos.flatMap(p => [p.nombre, p.puntos, p.detalle]),
     ...v.conducta.flatMap(r => [r.etiqueta, r.promedio, r.tendencia]),
