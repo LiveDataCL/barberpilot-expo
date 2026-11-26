@@ -48,14 +48,14 @@ export default function ProgresoScreen({ barbero }) {
       periodos.forEach((p, i) => {
         const r = results[i];
         if (r?.ok) {
+          // bb = the barber's earnings (Σ bb + propina). The billed total is never read here.
           map[p] = {
             bb:  r.a_cobrar   || 0,
             svc: r.servicios  || 0,
             tk:  r.ticket_prom|| 0,
-            fact:r.facturado  || 0,
           };
         } else {
-          map[p] = { bb: 0, svc: 0, tk: 0, fact: 0 };
+          map[p] = { bb: 0, svc: 0, tk: 0 };
         }
       });
       setDatos(map);
@@ -97,7 +97,7 @@ export default function ProgresoScreen({ barbero }) {
       {/* Variación vs mes anterior */}
       <View style={s.varRow}>
         <View style={[s.varCard, s.varGreen]}>
-          <Text style={s.varLbl}>Ingresos</Text>
+          <Text style={s.varLbl}>Ganancias</Text>
           <Text style={[s.varVal, { color: colorVar(varBB) }]}>{fmtVar(varBB)}</Text>
           <Text style={s.varSub}>vs mes anterior</Text>
         </View>
@@ -113,9 +113,9 @@ export default function ProgresoScreen({ barbero }) {
         </View>
       </View>
 
-      {/* Gráfica de barras — Ingresos */}
+      {/* Gráfica de barras — ganancias del barbero por mes */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>INGRESOS POR MES</Text>
+        <Text style={s.cardTitle}>Tus ganancias por mes</Text>
         <View style={s.barChart}>
           {periodos.map((p) => {
             const v    = datos[p]?.bb || 0;
@@ -183,7 +183,7 @@ export default function ProgresoScreen({ barbero }) {
           <Text style={[s.cell0, s.headTxt]}>Mes</Text>
           <Text style={[s.cell1, s.headTxt]}>Svc</Text>
           <Text style={[s.cell2, s.headTxt]}>Ticket</Text>
-          <Text style={[s.cell3, s.headTxt]}>Ingresos</Text>
+          <Text style={[s.cell3, s.headTxt]}>Ganancias</Text>
         </View>
         {[...periodos].reverse().map((p) => {
           const d     = datos[p] || {};

@@ -93,20 +93,19 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
     const prop = regs.reduce((a, r) => a + (r.propina || 0), 0);
     const tk   = n > 0 ? Math.round(fact / n) : 0;
 
-    // Por forma de pago
+    // Por forma de pago: the barber's earnings per method (bb + propina), never the billed price
     const porPago = {};
     regs.forEach(r => {
-      if (!porPago[r.pago]) porPago[r.pago] = { n: 0, fact: 0 };
+      if (!porPago[r.pago]) porPago[r.pago] = { n: 0, gan: 0 };
       porPago[r.pago].n++;
-      porPago[r.pago].fact += r.precio || 0;
+      porPago[r.pago].gan += (r.bb || 0) + (r.propina || 0);
     });
 
-    // Por servicio
+    // Por servicio (count only: no billed sum is kept)
     const porSvc = {};
     regs.forEach(r => {
-      if (!porSvc[r.snom]) porSvc[r.snom] = { n: 0, fact: 0 };
+      if (!porSvc[r.snom]) porSvc[r.snom] = { n: 0 };
       porSvc[r.snom].n++;
-      porSvc[r.snom].fact += r.precio || 0;
     });
     const topSvc = Object.entries(porSvc)
       .sort((a, b) => b[1].n - a[1].n).slice(0, 8);
@@ -120,7 +119,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
     const horaMax = Object.entries(porHora)
       .sort((a, b) => b[1] - a[1])[0];
 
-    return { n, fact, bb, prop, tk, porPago, topSvc, horaMax };
+    return { n, bb, prop, tk, porPago, topSvc, horaMax };
   };
 
   const testPush = async () => {
@@ -238,7 +237,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
               </View>
               <View style={[s.statCard, s.statGreen]}>
                 <Text style={[s.statVal, { color: COLORS.ok }]}>${fmt(datos.bb)}</Text>
-                <Text style={s.statLbl}>Ingresos</Text>
+                <Text style={s.statLbl}>Ganancias</Text>
               </View>
               <View style={[s.statCard, s.statGold]}>
                 <Text style={[s.statVal, { color: COLORS.gold }]}>${fmt(datos.tk)}</Text>
@@ -256,7 +255,7 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
             <View style={s.card}>
               <Text style={s.cardTitle}>POR FORMA DE PAGO</Text>
               {Object.entries(datos.porPago).map(([pago, v]) => {
-                const pct = datos.n > 0 ? Math.round(v.n / datos.n * 100) : 0;
+                const pct = datos.bb > 0 ? Math.round(v.gan / datos.bb * 100) : 0;
                 const color = pago === 'efectivo' ? COLORS.ok
                   : pago === 'debito' ? COLORS.blue : COLORS.gold;
                 return (
@@ -266,13 +265,13 @@ export default function ConfigScreen({ barbero, onLogout, catalogo }) {
                         {`${iconoPago(pago)} ${etiquetaPago(catalogo, pago)}`}
                       </Text>
                       <Text style={[s.pagoVal, { color }]}>
-                        {v.n} svc · ${fmt(v.fact)}
+                        {v.n} svc · ${fmt(v.gan)}
                       </Text>
                     </View>
                     <View style={s.barBg}>
                       <View style={[s.barFill, { width: `${pct}%`, backgroundColor: color }]} />
                     </View>
-                    <Text style={s.barPct}>{pct}% del total</Text>
+                    <Text style={s.barPct}>{pct}% de tus ganancias</Text>
                   </View>
                 );
               })}
