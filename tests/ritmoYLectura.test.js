@@ -20,10 +20,9 @@ const DTO = {
 const conMeta = (m) => ({ ...DTO, metaLocal: m });
 
 // ── the pace marker and caption ──
-test('pace: the caption carries the number in words and the note says it is based on elapsed working days', () => {
+test('pace: the marker caption carries the pace as "Marca: avance del mes N %"', () => {
   const r = vistaDe(DTO).metaLocal.ritmo;
-  assert.equal(r.texto, 'Ritmo esperado a hoy: 48 %');
-  assert.equal(r.nota, 'Según los días de trabajo transcurridos del mes.');
+  assert.equal(r.texto, 'Marca: avance del mes 48 %');
   assert.equal(r.pct, 48);
 });
 
@@ -78,12 +77,13 @@ test('bonus sentence: S and A keep the current text', () => {
 test('bonus sentence: the panel carries the same owner-approved text (same copy, both places)', () => {
   const panel = fs.readFileSync(new URL('../../control-copia/evaluacion-individual.js', import.meta.url), 'utf8');
   assert.match(panel, /Este estrato no genera bono\. Los estratos S y A sí, si se cumple la meta del grupo\./);
-  assert.match(panel, /Ritmo esperado a hoy: /);
+  assert.match(panel, /Marca: avance del mes /);
+  assert.match(panel, /Proyección para fin de mes: /);
 }, { skip: !fs.existsSync(new URL('../../control-copia/evaluacion-individual.js', import.meta.url)) });
 
 test('texts: the caption and note are the owner-approved strings', () => {
   assert.equal(TEXTOS.bonoSinBono, 'Este estrato no genera bono. Los estratos S y A sí, si se cumple la meta del grupo.');
-  assert.equal(TEXTOS.ritmo(48), 'Ritmo esperado a hoy: 48 %');
+  assert.equal(TEXTOS.marca(48), 'Marca: avance del mes 48 %');
 });
 
 // ── the tab: label, icon and accessibility; route and screen identifiers unchanged ──
