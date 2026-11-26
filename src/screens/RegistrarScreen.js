@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_URL, COLORS, SERVICIOS_FALLBACK, fmt, hoy } from '../constants';
 import { botonesPago, comisionPreview } from '../services/pagos';
-import { api } from '../services/api';
+import { api, fetchAutenticado } from '../services/api';
 import { updateDayNotification } from '../services/DayNotification';
 
 const { width } = Dimensions.get('window');
@@ -174,7 +174,8 @@ export default function RegistrarScreen({ barbero, catalogo }) {
             }),
           }).then(r => r.json());
           if (cliRes.ok) {
-            await fetch(`${API_URL}/registros/${regId}/cliente`, {
+            // The barber's session token is attached: a barber attaches a client only to his own sale of today (server rule).
+            await fetchAutenticado(`/registros/${regId}/cliente`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ cliente_id: cliRes.id }),

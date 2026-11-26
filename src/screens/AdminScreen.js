@@ -301,7 +301,8 @@ export default function AdminScreen({ onLogout, catalogo }) {
         bebida: recBebida.trim() || null,
         bebida_es_otro: !!recBebida.trim(),
       };
-      const res = await fetch(`${API_URL}/queue/control/checkin`, {
+      // The admin session token is attached (the route requires a staff session since 2026-11-20).
+      const res = await fetchAutenticado('/queue/control/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
