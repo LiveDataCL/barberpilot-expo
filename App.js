@@ -59,9 +59,9 @@ const TABS_BARBERO = [
   { id: 'cola',       label: 'Cola',      icon: 'users'       },
   { id: 'registrar',  label: 'Nuevo',     icon: 'plus-circle' },
   { id: 'mes',        label: 'Mi Mes',    icon: 'bar-chart-2' },
-  { id: 'tendencias', label: 'Tendenc.',  icon: 'trending-up' },
+  { id: 'tendencias', label: 'Tend.',     accesible: 'Tendencias', icon: 'trending-up' },
   { id: 'cobrar',     label: 'Cobrar',    icon: 'dollar-sign' },
-  { id: 'config',     label: 'Mi perfil', icon: 'user'        },
+  { id: 'config',     label: 'Perfil',    accesible: 'Mi perfil',  icon: 'user'        },
 ];
 
 async function registrarPushToken(bid) {
@@ -499,7 +499,7 @@ export default function App() {
               return (
                 <TouchableOpacity key={t.id} style={s.navBtn}
                   onPress={() => setTab(t.id)} activeOpacity={0.7}
-                  accessibilityRole="tab" accessibilityLabel={t.label}
+                  accessibilityRole="tab" accessibilityLabel={t.accesible || t.label}
                   accessibilityState={{ selected: active }}>
                   {active && <View style={[s.navBar, { backgroundColor: usuario.color }]} />}
                   <Feather name={t.icon} size={20} color={color} />

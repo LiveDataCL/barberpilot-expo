@@ -87,16 +87,22 @@ test('texts: the caption and note are the owner-approved strings', () => {
 });
 
 // ── the tab: label, icon and accessibility; route and screen identifiers unchanged ──
-test('tab: the label is "Mi perfil" with the person icon; the route id stays "config"', () => {
+test('tab: the shown label is "Perfil" with the person icon, announced as "Mi perfil"; the route id stays "config"', () => {
   const app = fs.readFileSync(new URL('../App.js', import.meta.url), 'utf8');
-  assert.match(app, /\{ id: 'config',\s+label: 'Mi perfil', icon: 'user'\s+\}/);
-  assert.equal(/label: 'Config'/.test(app), false, 'no old label left');
+  assert.match(app, /\{ id: 'config',\s+label: 'Perfil',\s+accesible: 'Mi perfil',\s+icon: 'user'\s+\}/);
+  assert.equal(/label: 'Config'|label: 'Mi perfil'|label: 'Tendenc\./.test(app), false, 'no old label left');
+});
+
+test('tab: "Tendencias" is announced in full, the shown label is "Tend."; route id unchanged', () => {
+  const app = fs.readFileSync(new URL('../App.js', import.meta.url), 'utf8');
+  assert.match(app, /\{ id: 'tendencias', label: 'Tend\.',\s+accesible: 'Tendencias', icon: 'trending-up' \}/);
+  assert.match(app, /accessibilityLabel=\{t\.accesible \|\| t\.label\}/);
 });
 
 test('tab: each label is one line, accessible as a tab, with no uppercase or wide spacing', () => {
   const app = fs.readFileSync(new URL('../App.js', import.meta.url), 'utf8');
   assert.match(app, /numberOfLines=\{1\}/);
-  assert.match(app, /accessibilityRole="tab" accessibilityLabel=\{t\.label\}/);
+  assert.match(app, /accessibilityRole="tab" accessibilityLabel=\{t\.accesible \|\| t\.label\}/);
   assert.match(app, /accessibilityState=\{\{ selected: active \}\}/);
   const nav = app.slice(app.indexOf('navLabel: {'), app.indexOf('navLabel: {') + 200);
   assert.equal(/textTransform|letterSpacing/.test(nav), false, 'no uppercase, no letter-spacing');
