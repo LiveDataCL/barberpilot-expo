@@ -100,7 +100,12 @@ export default function MiEvaluacion({ barbero }) {
           {ritmo ? (
             <View style={s.ritmoBloque}>
               <Text style={s.ritmoTxt}>{ritmo.texto}</Text>
-              <Text style={s.ritmoNota}>{ritmo.nota}</Text>
+            </View>
+          ) : null}
+          {v.metaLocal.proyeccionFin ? (
+            <View style={s.proyFinBloque} accessibilityRole="text">
+              <Text style={s.proyFinTxt}>{v.metaLocal.proyeccionFin.texto}</Text>
+              <Text style={s.proyFinNota}>{v.metaLocal.proyeccionFin.nota}</Text>
             </View>
           ) : null}
         </View>
@@ -181,7 +186,9 @@ const s = StyleSheet.create({
   ritmoMarca: { position: 'absolute', top: -4, bottom: -4, width: 3, marginLeft: -1.5, backgroundColor: COLORS.text, borderRadius: 2 },
   ritmoBloque: { marginTop: 8 },
   ritmoTxt: { fontSize: 13, fontFamily: MED, color: COLORS.text },
-  ritmoNota: { fontSize: 13, fontFamily: REG, color: COLORS.text2, marginTop: 2 },
+  proyFinBloque: { marginTop: 8 },
+  proyFinTxt: { fontSize: 15, fontFamily: MED, color: COLORS.text },
+  proyFinNota: { fontSize: 13, fontFamily: REG, color: COLORS.text2, marginTop: 2 },
   disq: { backgroundColor: '#3a1414', borderColor: '#7a2a2a', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
   disqTxt: { color: '#f5b5b5', fontSize: 14, fontFamily: BOLD },
   proyeccion: { backgroundColor: COLORS.s1, borderColor: COLORS.border2, borderWidth: 1, borderStyle: 'dashed', borderRadius: 10, padding: 12, marginBottom: 12 },
