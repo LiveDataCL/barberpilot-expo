@@ -52,10 +52,9 @@ export default function ProgresoScreen({ barbero }) {
             bb:  r.a_cobrar   || 0,
             svc: r.servicios  || 0,
             tk:  r.ticket_prom|| 0,
-            fact:r.facturado  || 0,
           };
         } else {
-          map[p] = { bb: 0, svc: 0, tk: 0, fact: 0 };
+          map[p] = { bb: 0, svc: 0, tk: 0 };
         }
       });
       setDatos(map);
@@ -115,7 +114,7 @@ export default function ProgresoScreen({ barbero }) {
 
       {/* Gráfica de barras — Ingresos */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>INGRESOS POR MES</Text>
+        <Text style={s.cardTitle}>Tus ganancias por mes</Text>
         <View style={s.barChart}>
           {periodos.map((p) => {
             const v    = datos[p]?.bb || 0;
