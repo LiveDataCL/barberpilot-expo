@@ -2,13 +2,11 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator, TextInput, Alert,
-  Dimensions, Image, Modal,
+  Dimensions, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import * as SecureStore from 'expo-secure-store';
-import { API_URL, COLORS, fmt, fmtM, hoy, mesPeriodo, SERVICIOS_FALLBACK } from '../constants';
+import { API_URL, COLORS, fmt, fmtM, hoy, SERVICIOS_FALLBACK } from '../constants';
+import HorarioAdmin from '../components/HorarioAdmin';
 import { useBarberos } from '../hooks/useBarberos';
 import { api, fetchAutenticado } from '../services/api';
 import { kpisPorBarbero } from '../services/kpisBarberos';
@@ -41,9 +39,9 @@ const TABS_ADMIN = [
   { id: 'resumen',    label: 'Resumen',   icon: 'stats-chart-outline' },
   { id: 'recepcion',  label: 'Recepción', icon: 'notifications-outline' },
   { id: 'sillas',     label: 'Sillas',    icon: 'cut-outline' },
-  { id: 'agenda',     label: 'Agenda',    icon: 'calendar-outline' },
   { id: 'registrar',  label: 'Registrar', icon: 'add-circle-outline' },
-  { id: 'barberos',   label: 'Perfiles',  icon: 'people-outline' },
+  { id: 'horario',    label: 'Horario',   icon: 'time-outline' },
+  { id: 'agenda',     label: 'Agenda',    icon: 'calendar-outline' },
 ];
 
 export default function AdminScreen({ onLogout, catalogo }) {
@@ -69,13 +67,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
   const [regCustomPrecio, setRegCustomPrecio] = useState('');
   const [regEnviando, setRegEnviando] = useState(false);
   const [regExito,    setRegExito]    = useState(false);
-
-  // ── Barbero seleccionado para ver su perfil ──────────────────
-  const [verBarbero, setVerBarbero] = useState(null);
-  const [datosBarbero, setDatosBarbero] = useState(null);
-
-  // ── Avatares de barberos ──────────────────────────────────────
-  const [avatarImgs, setAvatarImgs] = useState({});
 
   // ── Agenda ───────────────────────────────────────────────────
   const [agendaHoy,   setAgendaHoy]   = useState({});
@@ -173,48 +164,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
     }
   };
 
-  const verPerfilBarbero = async (b) => {
-    setVerBarbero(b);
-    try {
-      const [hoyRes, mesRes] = await Promise.all([
-        api.hoy(b.bid),
-        api.mes(b.bid, mesPeriodo()),
-      ]);
-      setDatosBarbero({ hoy: hoyRes, mes: mesRes });
-    } catch {}
-  };
-
-  useEffect(() => {
-    (async () => {
-      const imgs = {};
-      for (const b of barberos) {
-        const uri = await SecureStore.getItemAsync(`bp_avatar_img_${b.bid}`).catch(() => null);
-        if (uri) imgs[b.bid] = uri;
-      }
-      setAvatarImgs(imgs);
-    })();
-  }, []);
-
-  const cambiarAvatarAdmin = async (b) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Sin permiso', 'Se necesita acceso a la galería'); return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const dir = FileSystem.documentDirectory + 'avatars/';
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
-    const dest = dir + `avatar_${b.bid}.jpg`;
-    await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-    await SecureStore.setItemAsync(`bp_avatar_img_${b.bid}`, dest);
-    await SecureStore.deleteItemAsync(`bp_avatar_${b.bid}`).catch(() => {});
-    setAvatarImgs(prev => ({ ...prev, [b.bid]: dest }));
-  };
 
   // ── RENDER TABS ─────────────────────────────────────────────
 
@@ -938,7 +887,7 @@ export default function AdminScreen({ onLogout, catalogo }) {
         <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
           {[
             { id: 'registrar', label: 'Registrar', icon: '➕', color: COLORS.gold },
-            { id: 'barberos',  label: 'Barberos',  icon: '✂️', color: COLORS.text2 },
+            { id: 'horario',   label: 'Horario',   icon: '🕘', color: COLORS.text2 },
           ].map(item => (
             <TouchableOpacity key={item.id}
               style={{ flex: 1, minWidth: '45%', backgroundColor: COLORS.s2,
@@ -956,117 +905,6 @@ export default function AdminScreen({ onLogout, catalogo }) {
     </ScrollView>
   );
 
-  // Perfiles: devices with a fingerprint for the admin (admin session). Revoking one makes that device use the PIN.
-  const [dispositivos, setDispositivos] = useState([]);
-  const cargarDispositivos = async () => {
-    try {
-      const r = await fetchAutenticado('/api/v2/auth/devices');
-      const j = await r.json();
-      if (r.ok && j.ok) setDispositivos(j.devices || []);
-    } catch { /* offline: keep the last list */ }
-  };
-  useEffect(() => { if (tab === 'barberos') cargarDispositivos(); }, [tab]);
-  const revocarDispositivo = (d) => {
-    Alert.alert('Revocar huella', '¿Quitar la huella de "' + (d.device_label || 'este equipo') + '"? Ese equipo tendrá que ingresar el PIN.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Revocar', style: 'destructive', onPress: async () => {
-          try {
-            const r = await fetchAutenticado('/api/v2/auth/devices/' + d.id, { method: 'DELETE' });
-            if (!r.ok) Alert.alert('No se pudo revocar', 'Intenta de nuevo.');
-          } catch { Alert.alert('Sin conexión', 'No se pudo revocar. Intenta de nuevo.'); }
-          cargarDispositivos();
-      } },
-    ]);
-  };
-
-  const renderBarberos = () => (
-    <ScrollView>
-      <View style={s.content}>
-        <Text style={s.secLbl}>PERFILES Y AVATARES</Text>
-        {barberos.map(b => (
-          <View key={b.bid} style={s.barberoPerfil}>
-            <View style={{ position: 'relative' }}>
-              <View style={[s.accionAvatar, {
-                backgroundColor: b.bg, width: 56, height: 56,
-                borderRadius: 28, overflow: 'hidden',
-              }]}>
-                {avatarImgs[b.bid]
-                  ? <Image source={{ uri: avatarImgs[b.bid] }} style={{ width: 56, height: 56 }} />
-                  : <Text style={[s.accionLetra, { color: b.color, fontSize: 24 }]}>{b.letra}</Text>
-                }
-              </View>
-            </View>
-            <View style={{ flex: 1, marginLeft: 16 }}>
-              <Text style={s.barberoPNom}>{b.nombre}</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                <TouchableOpacity style={s.btnBarberoAcc}
-                  onPress={() => verPerfilBarbero(b)}>
-                  <Text style={s.btnBarberoAccTxt}>📊 Producción</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[s.btnBarberoAcc, { borderColor: 'rgba(201,168,76,.4)' }]}
-                  onPress={() => cambiarAvatarAdmin(b)}>
-                  <Text style={[s.btnBarberoAccTxt, { color: COLORS.gold }]}>📷 Avatar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        ))}
-
-        {/* Detalle del barbero seleccionado */}
-        {verBarbero && datosBarbero && (
-          <View style={[s.card, { marginTop: 20 }]}>
-            <View style={s.rowBetween}>
-              <Text style={s.cardTitle}>
-                {verBarbero.nombre.toUpperCase()} · HOY
-              </Text>
-              <TouchableOpacity onPress={() => { setVerBarbero(null); setDatosBarbero(null); }}>
-                <Text style={{ color: COLORS.text3, fontSize: 18 }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={s.grid2}>
-              <View style={s.statCard}>
-                <Text style={s.statVal}>{datosBarbero.hoy?.servicios || 0}</Text>
-                <Text style={s.statLbl}>Svc hoy</Text>
-              </View>
-              <View style={[s.statCard, s.statGreen]}>
-                <Text style={[s.statVal, { color: COLORS.ok }]}>
-                  ${fmt(datosBarbero.hoy?.a_cobrar || 0)}
-                </Text>
-                <Text style={s.statLbl}>A cobrar</Text>
-              </View>
-              <View style={s.statCard}>
-                <Text style={s.statVal}>{datosBarbero.mes?.servicios || 0}</Text>
-                <Text style={s.statLbl}>Svc mes</Text>
-              </View>
-              <View style={[s.statCard, s.statGold]}>
-                <Text style={[s.statVal, { color: COLORS.gold }]}>
-                  {fmtM(datosBarbero.mes?.a_cobrar || 0)}
-                </Text>
-                <Text style={s.statLbl}>Mes</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        <Text style={[s.secLbl, { marginTop: 18 }]}>HUELLA DEL ADMINISTRADOR · EQUIPOS</Text>
-        {dispositivos.length === 0 ? (
-          <Text style={{ color: COLORS.text3, fontSize: 13 }}>Ningún equipo con huella.</Text>
-        ) : dispositivos.map(d => (
-          <View key={d.id} style={[s.card, { marginBottom: 10 }]}>
-            <Text style={{ fontSize: 15, color: COLORS.text, fontWeight: '600' }}>{d.device_label || 'Equipo'}</Text>
-            <Text style={{ fontSize: 12, color: COLORS.text3, marginTop: 4 }}>
-              {d.revoked_at ? 'Revocado' : 'Activo'} · último uso: {d.last_used_at ? new Date(d.last_used_at).toLocaleString('es-CL') : 'nunca'}
-            </Text>
-            {!d.revoked_at && (
-              <TouchableOpacity onPress={() => revocarDispositivo(d)} style={{ marginTop: 10, minHeight: 44, justifyContent: 'center' }}>
-                <Text style={{ color: '#E05A5A', fontWeight: '600' }}>Revocar huella</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  );
 
   const renderAgenda = () => {
     const todasCitas = barberos.flatMap(b =>
@@ -1165,7 +1003,8 @@ export default function AdminScreen({ onLogout, catalogo }) {
         tab === 'registrar'  ? renderRegistrar()  :
         tab === 'recepcion'  ? renderRecepcion()  :
         tab === 'sillas'     ? renderSillas()     :
-        renderBarberos()
+        tab === 'horario'    ? <HorarioAdmin registrosHoy={regsHoy} /> :
+        null
       )}
 
       {renderCobroSheet()}
